@@ -108,7 +108,7 @@ with st.sidebar:
     st.divider()
 
     st.header("🎧 Mood")
-    st.video("https://www.youtube.com/watch?v=jfKfPfyJRdk")
+    st.video("https://youtu.be/g9yQoMe8VDA")
 
     st.divider()
     zoom = st.slider("🔍 Ukuran Baca", 0.8, 2.5, 1.4, 0.1)
@@ -189,3 +189,4 @@ else:
 
     st.session_state.progress[b] = st.session_state.halaman
     doc.close()
+
