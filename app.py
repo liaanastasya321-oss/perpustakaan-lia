@@ -1,52 +1,86 @@
 import streamlit as st
 import fitz  # PyMuPDF
 import os
+import random
 
 # =====================
-# CONFIG
+# 1. KONFIGURASI HALAMAN
 # =====================
 st.set_page_config(page_title="Z-Library Mini", page_icon="📚", layout="wide")
 
 # =====================
-# CSS (DESAIN TAMPILAN)
+# 2. LOGIKA KUNANG-KUNANG (PYTHON)
 # =====================
+# Kita bikin 50 kunang-kunang dengan posisi acak
+firefly_html = ""
+for i in range(50):
+    left = random.randint(1, 99)
+    delay = random.uniform(0, 20)
+    duration = random.uniform(10, 20)
+    size = random.randint(2, 5)
+    
+    # Kita tumpuk kode HTML-nya di sini
+    firefly_html += f"""
+    <div class="firefly" style="
+        left: {left}%; 
+        animation-delay: {delay}s; 
+        animation-duration: {duration}s;
+        width: {size}px;
+        height: {size}px;
+    "></div>
+    """
+
+# =====================
+# 3. INJECT DESAIN (CSS)
+# =====================
+# Perhatikan: Bagian ini dipisah biar gak error
 st.markdown("""
 <style>
-/* Import Font Keren: Poppins */
+/* Import Font */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
-/* --- DASAR HALAMAN --- */
+/* --- BACKGROUND GELAP --- */
 .stApp {
-    background: linear-gradient(to bottom right, #0e1117, #161b24);
+    background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
     color: #eaeaea;
     font-family: 'Poppins', sans-serif;
+    overflow-x: hidden;
 }
 
-/* --- SIDEBAR (Menu Kiri) --- */
+/* --- ANIMASI KUNANG-KUNANG --- */
+.firefly {
+    position: fixed;
+    bottom: -10px;
+    background: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 15px 2px rgba(0, 201, 255, 0.6);
+    border-radius: 50%;
+    pointer-events: none; /* Biar bisa diklik tembus */
+    z-index: 999; /* Paling depan biar kelihatan */
+    animation: floatUp linear infinite;
+}
+
+@keyframes floatUp {
+    0% { bottom: -10px; opacity: 0; transform: translateX(0); }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { bottom: 100vh; opacity: 0; transform: translateX(20px); }
+}
+
+/* --- UPDATE SIDEBAR --- */
 section[data-testid="stSidebar"] {
-    background-color: #11141d;
+    background-color: rgba(17, 20, 29, 0.95);
     border-right: 1px solid #2d323e;
+    z-index: 1000;
 }
-
-/* Paksa Tulisan Sidebar Jadi Putih */
-section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, 
-section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] p, 
-section[data-testid="stSidebar"] div, section[data-testid="stSidebar"] span {
-    color: #ffffff !important;
-}
+section[data-testid="stSidebar"] * { color: #ffffff !important; }
 .stCaption { color: #cccccc !important; }
 
-/* Tombol Kecil di Sidebar (Undo) */
+/* --- TOMBOL UNDO --- */
 button[kind="secondary"] {
     background: transparent !important;
     border: 1px solid #555 !important;
     color: white !important;
-    padding: 2px 8px !important;
     font-size: 10px !important;
-}
-button[kind="secondary"]:hover {
-    border-color: #00C9FF !important;
-    color: #00C9FF !important;
 }
 
 /* --- TOMBOL UTAMA --- */
@@ -57,11 +91,10 @@ button[kind="secondary"]:hover {
     border-radius: 12px;
     transition: all 0.3s ease;
 }
-/* Tombol BACA (Gradient Biru) */
 [data-testid="column"] .stButton button {
     background: linear-gradient(45deg, #00C9FF, #0078ff) !important;
     border: none !important;
-    box-shadow: 0 4px 15px rgba(0, 201, 255, 0.4);
+    box-shadow: 0 4px 15px rgba(0, 201, 255, 0.3);
 }
 [data-testid="column"] .stButton button:hover {
     transform: translateY(-2px);
@@ -70,13 +103,18 @@ button[kind="secondary"]:hover {
 
 /* --- KARTU BUKU --- */
 .book-card {
-    background: #1c1f26;
+    background: rgba(28, 31, 38, 0.8);
+    backdrop-filter: blur(5px);
     border: 1px solid #2d323e;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     border-radius: 16px;
     padding: 15px;
     transition: all 0.3s ease;
     margin-bottom: 20px;
+}
+.book-card:hover {
+    transform: translateY(-5px);
+    border-color: #00C9FF;
 }
 .book-title {
     text-align: center;
@@ -92,7 +130,13 @@ button[kind="secondary"]:hover {
 """, unsafe_allow_html=True)
 
 # =====================
-# STATE MANAGEMENT
+# 4. INJECT KUNANG-KUNANG (TERPISAH BIAR AMAN)
+# =====================
+# Ini dia kuncinya: Kita masukkan HTML kunang-kunang di sini
+st.markdown(firefly_html, unsafe_allow_html=True)
+
+# =====================
+# 5. STATE MANAGEMENT
 # =====================
 if 'buku' not in st.session_state: st.session_state.buku = None
 if 'halaman' not in st.session_state: st.session_state.halaman = 0
@@ -101,7 +145,7 @@ if 'selesai' not in st.session_state: st.session_state.selesai = set()
 if 'progress' not in st.session_state: st.session_state.progress = {}
 
 # =====================
-# FUNGSI
+# 6. FUNGSI
 # =====================
 def list_buku():
     if not os.path.exists("buku_pdf"): os.makedirs("buku_pdf")
@@ -120,7 +164,7 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# SIDEBAR (DENGAN FITUR UNDO)
+# 7. SIDEBAR
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
@@ -136,16 +180,13 @@ with st.sidebar:
 
     st.subheader("✅ Selesai")
     if st.session_state.selesai:
-        # PENTING: Kita pakai list() biar bisa diedit sambil loop
         for b in list(st.session_state.selesai):
             c1, c2 = st.columns([4, 1])
-            with c1:
-                st.caption(f"✔ {b.replace('.pdf', '')}")
+            with c1: st.caption(f"✔ {b.replace('.pdf', '')}")
             with c2:
-                # TOMBOL SAKTI: BATALKAN SELESAI
-                if st.button("↺", key=f"undo_{b}", help="Baca lagi (Batal Selesai)"):
-                    st.session_state.selesai.discard(b) # Hapus dari selesai
-                    st.session_state.sedang.add(b)      # Balikin ke sedang baca
+                if st.button("↺", key=f"undo_{b}", help="Batal Selesai"):
+                    st.session_state.selesai.discard(b)
+                    st.session_state.sedang.add(b)
                     st.rerun()
     else:
         st.caption("- Belum ada -")
@@ -161,18 +202,18 @@ with st.sidebar:
         zoom = 1.4
 
 # =====================
-# MAIN APP
+# 8. MAIN APP
 # =====================
 books = list_buku()
 
 # --- MODE GALERI ---
 if st.session_state.buku is None:
-    st.markdown("<h1>📚 Galeri Buku</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>✨ Galeri Buku</h1>", unsafe_allow_html=True)
     
     cari = st.text_input("🔍 Cari buku...", placeholder="Ketik judul buku...").lower()
     if cari: books = [b for b in books if cari in b.lower()]
 
-    if not books: st.info("Belum ada buku nih. Upload dulu ya! 📂")
+    if not books: st.info("Belum ada buku. Upload di GitHub ya! 📂")
     
     cols = st.columns(4)
     for i, b in enumerate(books):
@@ -186,7 +227,6 @@ if st.session_state.buku is None:
             judul = b.replace(".pdf", "").replace("_", " ")
             st.markdown(f"<div class='book-title' title='{judul}'>{judul}</div>", unsafe_allow_html=True)
             
-            # LOGIKA TOMBOL BACA (PINTAR)
             label_tombol = "📖 BACA"
             if b in st.session_state.selesai:
                 label_tombol = "♻️ BACA ULANG"
@@ -194,7 +234,6 @@ if st.session_state.buku is None:
             if st.button(label_tombol, key=f"btn_{b}", use_container_width=True):
                 st.session_state.buku = b
                 st.session_state.halaman = st.session_state.progress.get(b, 0)
-                # OTOMATIS: Masukin ke Sedang Dibaca & Hapus dari Selesai
                 st.session_state.sedang.add(b)
                 st.session_state.selesai.discard(b)
                 st.rerun()
@@ -210,7 +249,6 @@ else:
         doc = fitz.open(path)
         total_hal = doc.page_count
         
-        # Header Navigasi
         c1, c2, c3 = st.columns([1, 6, 1])
         with c1:
             if st.button("⬅️ Kembali"):
@@ -219,33 +257,30 @@ else:
         with c2:
             st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
         with c3:
-            # TOMBOL SELESAI
             if st.button("✅ Selesai"):
                 st.session_state.selesai.add(b)
                 st.session_state.sedang.discard(b)
                 st.session_state.buku = None
-                st.toast("Buku ditandai selesai! 🎉")
+                st.toast("Buku selesai! 🎉")
                 st.rerun()
 
         st.divider()
 
-        # Navigasi Halaman
         n1, n2, n3 = st.columns([1, 2, 1])
         with n1:
             if st.session_state.halaman > 0:
-                if st.button("⬅️ Sebelumnya", use_container_width=True):
+                if st.button("⬅️ Prev", use_container_width=True):
                     st.session_state.halaman -= 1
                     st.rerun()
         with n2:
             st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
         with n3:
             if st.session_state.halaman < total_hal - 1:
-                if st.button("Berikutnya ➡️", use_container_width=True):
+                if st.button("Next ➡️", use_container_width=True):
                     st.session_state.halaman += 1
                     st.rerun()
 
-        # Tampilan PDF
-        st.markdown("<div style='text-align:center; background:#16181d; padding:10px; border-radius:15px'>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
         gambar = render_page(doc, st.session_state.halaman, zoom)
         if gambar: st.image(gambar, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
