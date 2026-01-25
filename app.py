@@ -8,7 +8,7 @@ import os
 st.set_page_config("Z-Library Mini", "📚", layout="wide")
 
 # =====================
-# CSS (BAGIAN PERMAK TAMPILAN ✨)
+# CSS (BAGIAN PERMAK TAMPILAN + FIX TULISAN HILANG 🛠️)
 # =====================
 st.markdown("""
 <style>
@@ -17,37 +17,74 @@ st.markdown("""
 
 /* --- DASAR HALAMAN --- */
 .stApp {
-    /* Background gelap dengan gradasi halus biar berdimensi */
     background: linear-gradient(to bottom right, #0e1117, #161b24);
     color: #eaeaea;
-    font-family: 'Poppins', sans-serif; /* Pakai font baru */
+    font-family: 'Poppins', sans-serif;
 }
 
-/* --- JUDUL GRADIENT --- */
+/* --- FIX SIDEBAR (Menu Kiri) --- */
+section[data-testid="stSidebar"] {
+    background-color: #11141d;
+    border-right: 1px solid #2d323e;
+}
+
+/* Paksa semua tulisan di Sidebar jadi Putih */
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] div {
+    color: #ffffff !important;
+}
+
+/* Khusus Caption (Daftar buku kecil) biar gak abu-abu gelap */
+.stCaption, div[data-testid="stCaptionContainer"] {
+    color: #cccccc !important; /* Abu terang */
+    font-size: 13px;
+}
+
+/* FIX ICON / PANAH (Biar kelihatan putih) */
+button[kind="header"] svg, 
+section[data-testid="stSidebar"] svg {
+    fill: white !important;
+    color: white !important;
+}
+
+/* --- JUDUL GRADIENT (Main Content) --- */
 h1, h2, h3 {
     font-weight: 700 !important;
     background: -webkit-linear-gradient(45deg, #00C9FF, #92FE9D);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    /* Reset warna sidebar header biar gak transparan (tabrakan) */
+    /* Kita biarkan gradient cuma buat yang di halaman utama */
 }
 
-/* --- TOMBOL UMUM (Navigasi dll) --- */
+/* Override khusus Header di Sidebar biar putih solid (bukan gradient) biar jelas */
+section[data-testid="stSidebar"] h1, 
+section[data-testid="stSidebar"] h2 {
+    background: none !important;
+    -webkit-text-fill-color: white !important;
+    color: white !important;
+}
+
+/* --- TOMBOL UMUM --- */
 .stButton button {
     background: #262a36 !important;
     color: #ffffff !important;
     border: 1px solid #3a3f4b;
-    border-radius: 12px; /* Lebih rounded */
+    border-radius: 12px;
     font-weight: 600;
     transition: all 0.3s ease;
 }
 .stButton button:hover {
     background: #3a3f4b !important;
     border-color: #00C9FF;
-    box-shadow: 0 0 10px rgba(0, 201, 255, 0.3); /* Efek glow pas hover */
+    box-shadow: 0 0 10px rgba(0, 201, 255, 0.3);
 }
 
-/* --- TOMBOL KHUSUS "BACA" (Biar menonjol) --- */
-/* Kita targetkan tombol di dalam kolom galeri */
+/* --- TOMBOL BACA (GRADIENT) --- */
 [data-testid="column"] .stButton button {
     background: linear-gradient(45deg, #00C9FF, #0078ff) !important;
     border: none !important;
@@ -61,19 +98,15 @@ h1, h2, h3 {
 /* --- KARTU BUKU --- */
 .book-card {
     background: #1c1f26;
-    /* Tambah border tipis dan shadow biar 'pop up' */
     border: 1px solid #2d323e;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     border-radius: 16px;
     padding: 15px;
     transition: all 0.3s ease;
 }
-
-/* EFEK HOVER KARTU (GLOWING!) ✨ */
 .book-card:hover {
     transform: translateY(-7px) scale(1.02);
     border-color: #00C9FF;
-    /* Efek sinar biru di sekeliling kartu */
     box-shadow: 0 10px 30px rgba(0, 201, 255, 0.2);
 }
 
@@ -84,7 +117,6 @@ h1, h2, h3 {
     margin-top: 12px;
     margin-bottom: 10px;
     color: #fff;
-    /* Biar judul panjang gak ngerusak tampilan */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -96,6 +128,12 @@ h1, h2, h3 {
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 
+/* --- INPUT FIELD FIX (Biar gak gelap) --- */
+input[type="text"] {
+    background-color: #262a36 !important;
+    color: white !important;
+}
+
 /* --- READER AREA --- */
 .reader-wrap {
     max-width: 900px;
@@ -104,12 +142,6 @@ h1, h2, h3 {
     background: #16181d;
     border-radius: 20px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-/* --- SIDEBAR --- */
-section[data-testid="stSidebar"] {
-    background-color: #11141d;
-    border-right: 1px solid #2d323e;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -172,7 +204,6 @@ with st.sidebar:
     st.divider()
 
     st.header("🎧 Mood")
-    # Musik sesuai permintaan terakhir
     st.video("https://youtu.be/g9yQoMe8VDA")
 
     st.divider()
@@ -187,7 +218,6 @@ books = list_buku()
 # GALERI
 # =====================
 if st.session_state.buku is None:
-    # Pakai H1 biar kena efek gradient
     st.markdown("<h1>📚 Galeri Buku</h1>", unsafe_allow_html=True)
 
     q = st.text_input("🔍 Cari buku", placeholder="Ketik judul buku...").lower()
@@ -203,20 +233,17 @@ if st.session_state.buku is None:
             c = cover(path)
             title = b.replace(".pdf","").replace("_"," ")
 
-            # Kartu Buku dengan HTML Wrapper
             st.markdown("<div class='book-card'>", unsafe_allow_html=True)
             if c: st.image(c, use_container_width=True)
-            # Judul dibungkus div biar rapi
             st.markdown(f"<div class='book-title' title='{title}'>{title}</div>", unsafe_allow_html=True)
             
-            # Tombol Baca (Style-nya sudah diatur di CSS di atas)
             if st.button("📖 BACA SEKARANG", key=b, use_container_width=True):
                 st.session_state.buku = b
                 st.session_state.halaman = st.session_state.progress.get(b, 0)
                 st.session_state.sedang.add(b)
                 st.rerun()
             
-            st.markdown("</div>", unsafe_allow_html=True) # Tutup div book-card
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # =====================
 # READER
@@ -232,7 +259,6 @@ else:
             st.session_state.buku = None
             st.rerun()
     with top2:
-        # Judul H2 biar kena gradient
         st.markdown(f"<h2 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h2>", unsafe_allow_html=True)
     with top3:
         if st.button("✅ Selesai"):
@@ -258,11 +284,6 @@ else:
                 st.session_state.halaman += 1
                 st.rerun()
 
-    # Area baca dikasih bingkai di CSS
     st.markdown("<div class='reader-wrap'>", unsafe_allow_html=True)
     img = render(doc, st.session_state.halaman, zoom)
-    st.image(img, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    st.session_state.progress[b] = st.session_state.halaman
-    doc.close()
+    st
