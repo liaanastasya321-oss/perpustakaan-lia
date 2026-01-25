@@ -1,200 +1,191 @@
 import streamlit as st
-import fitz  # PyMuPDF
+import fitz
 import os
 
-# --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Sains Data Library", layout="wide", page_icon="📚")
+# =====================
+# CONFIG
+# =====================
+st.set_page_config("Z-Library Mini", "📚", layout="wide")
 
-# --- 2. CSS "GRID TOKOPEDIA" (FIXED) ---
+# =====================
+# CSS
+# =====================
 st.markdown("""
 <style>
-    /* Reset warna teks biar jelas */
-    .stApp { background-color: #0e1117; color: white; }
-    
-    /* Judul Gradient tetap ada biar manis */
-    h1 {
-        background: -webkit-linear-gradient(45deg, #00C9FF, #92FE9D);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: bold;
-    }
+.stApp {
+    background-color: #0e1117;
+    color: #eaeaea;
+}
 
-    /* KARTU BUKU */
-    div[data-testid="column"] {
-        background-color: #262730;
-        border: 1px solid #41444d;
-        border-radius: 8px;
-        padding: 10px;
-        text-align: center;
-        /* Biar tinggi kartu seragam */
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }
+/* BUTTON FIX */
+.stButton button {
+    background: #1c1f26 !important;
+    color: #ffffff !important;
+    border-radius: 25px;
+    font-weight: 600;
+}
 
-    /* Gambar Cover */
-    img { border-radius: 4px; margin-bottom: 8px; width: 100%; object-fit: cover; }
+/* BOOK CARD */
+.book-card {
+    background: #1c1f26;
+    border-radius: 16px;
+    padding: 12px;
+    transition: 0.2s;
+}
+.book-card:hover {
+    transform: translateY(-4px);
+}
+.book-title {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 6px;
+}
 
-    /* Tombol */
-    div.stButton > button {
-        width: 100%;
-        border-radius: 15px;
-        font-weight: bold;
-        border: 1px solid #555;
-    }
-
-    /* --- HACK TAMPILAN HP (WAJIB ADA) --- */
-    @media (max-width: 640px) {
-        /* Paksa wadah kolom biar mau berjejer ke samping */
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
-        }
-        
-        /* Paksa setiap kolom jadi 50% (setengah layar) */
-        div[data-testid="column"] {
-            width: 50% !important;
-            flex: 0 0 50% !important;
-            max-width: 50% !important;
-            padding: 5px !important;
-        }
-
-        /* Kecilin font di HP biar muat */
-        div[data-testid="column"] p {
-            font-size: 11px !important;
-            margin-bottom: 5px !important;
-            line-height: 1.2;
-        }
-        
-        /* Tombol lebih kecil di HP */
-        div.stButton > button {
-            font-size: 10px !important;
-            padding: 2px 0px !important;
-            min-height: 0px !important;
-        }
-    }
+/* READER */
+.reader-wrap {
+    max-width: 900px;
+    margin: auto;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. STATE MANAGEMENT ---
-if 'buku_terpilih' not in st.session_state: st.session_state.buku_terpilih = None
-if 'halaman' not in st.session_state: st.session_state.halaman = 0
-if 'sedang_dibaca' not in st.session_state: st.session_state.sedang_dibaca = set()
+# =====================
+# STATE
+# =====================
+for k, v in {
+    "buku": None,
+    "halaman": 0,
+    "sedang": set(),
+    "selesai": set(),
+    "progress": {}
+}.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
-# --- 4. FUNGSI ---
-def rapikan_judul(nama_file):
-    nama = nama_file.replace('.pdf', '')
-    nama = nama.split('(')[0]
-    return nama.strip().title()
-
-def get_list_buku(folder_path):
-    if not os.path.exists(folder_path): os.makedirs(folder_path)
-    return [f for f in os.listdir(folder_path) if f.lower().endswith('.pdf')]
+# =====================
+# FUNGSI
+# =====================
+def list_buku():
+    os.makedirs("buku_pdf", exist_ok=True)
+    return [b for b in os.listdir("buku_pdf") if b.endswith(".pdf")]
 
 @st.cache_data
-def get_cover(path_buku):
+def cover(path):
     try:
-        doc = fitz.open(path_buku)
-        pix = doc.load_page(0).get_pixmap(matrix=fitz.Matrix(0.4, 0.4))
+        d = fitz.open(path)
+        p = d.load_page(0)
+        pix = p.get_pixmap(matrix=fitz.Matrix(0.4,0.4))
         return pix.tobytes("png")
-    except: return None
+    except:
+        return None
 
-def get_page_image(path_buku, nomor_halaman, zoom=1.5):
-    try:
-        doc = fitz.open(path_buku)
-        pix = doc.load_page(nomor_halaman).get_pixmap(matrix=fitz.Matrix(zoom, zoom))
-        return pix.tobytes("png")
-    except: return None
+def render(doc, page, zoom):
+    p = doc.load_page(page)
+    pix = p.get_pixmap(matrix=fitz.Matrix(zoom, zoom))
+    return pix.tobytes("png")
 
-# --- 5. MAIN APP ---
-folder_buku = "buku_pdf"
-semua_buku = get_list_buku(folder_buku)
-
+# =====================
 # SIDEBAR
+# =====================
 with st.sidebar:
-    st.header("🎧 Teman Belajar")
-    st.video("https://www.youtube.com/watch?v=jfKfPfyJRdk")
+    st.header("👤 Rak Lia")
+
+    st.subheader("📖 Sedang Dibaca")
+    if st.session_state.sedang:
+        for b in st.session_state.sedang:
+            st.caption("• " + b.replace(".pdf",""))
+    else:
+        st.caption("-")
+
+    st.subheader("✅ Selesai")
+    if st.session_state.selesai:
+        for b in st.session_state.selesai:
+            st.caption("✔ " + b.replace(".pdf",""))
+    else:
+        st.caption("-")
+
     st.divider()
-    if st.session_state.buku_terpilih:
-        if st.button("⬅️ KEMBALI KE RAK", type="primary"):
-            st.session_state.buku_terpilih = None
-            st.session_state.halaman = 0
+
+    st.header("🎧 Mood")
+    st.video("https://www.youtube.com/watch?v=jfKfPfyJRdk")
+
+    st.divider()
+    zoom = st.slider("🔍 Ukuran Baca", 0.8, 2.5, 1.4, 0.1)
+
+# =====================
+# DATA
+# =====================
+books = list_buku()
+
+# =====================
+# GALERI
+# =====================
+if st.session_state.buku is None:
+    st.title("📚 Galeri Buku")
+
+    q = st.text_input("🔍 Cari buku").lower()
+    books = [b for b in books if q in b.lower()]
+
+    cols = st.columns(4)
+    for i, b in enumerate(books):
+        with cols[i % 4]:
+            path = f"buku_pdf/{b}"
+            c = cover(path)
+            title = b.replace(".pdf","").replace("_"," ")
+
+            st.markdown("<div class='book-card'>", unsafe_allow_html=True)
+            if c: st.image(c, use_container_width=True)
+            st.markdown(f"<div class='book-title'>{title}</div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            if st.button("📖 Baca", key=b, use_container_width=True):
+                st.session_state.buku = b
+                st.session_state.halaman = st.session_state.progress.get(b, 0)
+                st.session_state.sedang.add(b)
+                st.rerun()
+
+# =====================
+# READER
+# =====================
+else:
+    b = st.session_state.buku
+    doc = fitz.open(f"buku_pdf/{b}")
+    total = doc.page_count
+
+    top1, top2, top3 = st.columns([1,6,1])
+    with top1:
+        if st.button("⬅️"):
+            st.session_state.buku = None
+            st.rerun()
+    with top2:
+        st.markdown(f"<h3 style='text-align:center'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
+    with top3:
+        if st.button("✅"):
+            st.session_state.selesai.add(b)
+            st.session_state.sedang.discard(b)
+            st.session_state.buku = None
+            st.toast("Buku selesai 🎉")
             st.rerun()
 
-# AREA UTAMA
-if st.session_state.buku_terpilih is None:
-    st.title("📚 Pustaka Sains Data")
-    
-    cari = st.text_input("🔍 Cari Judul...", placeholder="Ketik judul...")
-    buku_filtered = [b for b in semua_buku if cari.lower() in b.lower()]
-    
-    if not buku_filtered:
-        st.warning("Buku tidak ditemukan.")
-    else:
-        # --- LOGIKA GRID BARU (PENTING BUAT HP) ---
-        # Kita bagi buku jadi kelompok 4 (untuk laptop).
-        # CSS di atas akan otomatis maksa jadi 2 kolom kalau di HP.
-        
-        kolom_per_baris = 4
-        # Loop dengan loncat setiap 4 angka
-        for i in range(0, len(buku_filtered), kolom_per_baris):
-            # Ambil potongan 4 buku
-            batch_buku = buku_filtered[i : i + kolom_per_baris]
-            
-            # Bikin wadah kolom (Row)
-            cols = st.columns(kolom_per_baris)
-            
-            # Masukkan buku ke kolom yang tersedia
-            for j, buku in enumerate(batch_buku):
-                path = os.path.join(folder_buku, buku)
-                with cols[j]:
-                    cover = get_cover(path)
-                    if cover: st.image(cover, use_container_width=True)
-                    
-                    judul_rapi = rapikan_judul(buku)
-                    # Judul dipotong dikit biar gak ngerusak kotak
-                    if len(judul_rapi) > 35: judul_rapi = judul_rapi[:32] + "..."
-                    st.caption(f"**{judul_rapi}**")
-                    
-                    if st.button("📖 Baca", key=f"btn_{buku}"):
-                        st.session_state.buku_terpilih = buku
-                        st.session_state.halaman = 0
-                        st.session_state.sedang_dibaca.add(buku)
-                        st.rerun()
+    nav1, nav2, nav3 = st.columns([1,2,1])
+    with nav1:
+        if st.session_state.halaman > 0:
+            if st.button("⬅️ Sebelumnya"):
+                st.session_state.halaman -= 1
+                st.rerun()
+    with nav2:
+        st.markdown(f"<center>{st.session_state.halaman+1} / {total}</center>", unsafe_allow_html=True)
+    with nav3:
+        if st.session_state.halaman < total-1:
+            if st.button("Berikutnya ➡️"):
+                st.session_state.halaman += 1
+                st.rerun()
 
-# MODE BACA
-else:
-    buku_aktif = st.session_state.buku_terpilih
-    path_lengkap = os.path.join(folder_buku, buku_aktif)
-    judul_rapi = rapikan_judul(buku_aktif)
-    
-    c1, c2 = st.columns([3, 1])
-    with c1: st.subheader(f"📖 {judul_rapi}")
-    with c2: zoom = st.slider("🔍 Zoom", 0.5, 2.0, 1.0, 0.1)
+    st.markdown("<div class='reader-wrap'>", unsafe_allow_html=True)
+    img = render(doc, st.session_state.halaman, zoom)
+    st.image(img, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    try:
-        doc = fitz.open(path_lengkap)
-        total_hal = doc.page_count
-        gambar = get_page_image(path_lengkap, st.session_state.halaman, zoom)
-        
-        # Layout tengah
-        kiri, tengah, kanan = st.columns([1, 10, 1])
-        with tengah:
-            st.image(gambar, use_container_width=True)
-            
-            col_prev, col_info, col_next = st.columns([1, 2, 1])
-            with col_prev:
-                if st.session_state.halaman > 0:
-                    if st.button("⬅️ Prev", use_container_width=True):
-                        st.session_state.halaman -= 1
-                        st.rerun()
-            with col_info:
-                st.markdown(f"<div style='text-align:center; margin-top:5px'>{st.session_state.halaman + 1} / {total_hal}</div>", unsafe_allow_html=True)
-            with col_next:
-                if st.session_state.halaman < total_hal - 1:
-                    if st.button("Next ➡️", use_container_width=True):
-                        st.session_state.halaman += 1
-                        st.rerun()
-    except Exception as e:
-        st.error(f"Error: {e}")
+    st.session_state.progress[b] = st.session_state.halaman
+    doc.close()
