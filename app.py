@@ -9,9 +9,8 @@ import random
 st.set_page_config(page_title="Z-Library Mini", page_icon="📚", layout="wide")
 
 # =====================
-# 2. LOGIKA KUNANG-KUNANG (PYTHON)
+# 2. LOGIKA KUNANG-KUNANG
 # =====================
-# Kita bikin 50 kunang-kunang dengan posisi acak
 firefly_html = ""
 for i in range(50):
     left = random.randint(1, 99)
@@ -19,7 +18,6 @@ for i in range(50):
     duration = random.uniform(10, 20)
     size = random.randint(2, 5)
     
-    # Kita tumpuk kode HTML-nya di sini
     firefly_html += f"""
     <div class="firefly" style="
         left: {left}%; 
@@ -33,13 +31,10 @@ for i in range(50):
 # =====================
 # 3. INJECT DESAIN (CSS)
 # =====================
-# Perhatikan: Bagian ini dipisah biar gak error
 st.markdown("""
 <style>
-/* Import Font */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
-/* --- BACKGROUND GELAP --- */
 .stApp {
     background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
     color: #eaeaea;
@@ -47,15 +42,14 @@ st.markdown("""
     overflow-x: hidden;
 }
 
-/* --- ANIMASI KUNANG-KUNANG --- */
 .firefly {
     position: fixed;
     bottom: -10px;
     background: rgba(255, 255, 255, 0.5);
     box-shadow: 0 0 15px 2px rgba(0, 201, 255, 0.6);
     border-radius: 50%;
-    pointer-events: none; /* Biar bisa diklik tembus */
-    z-index: 999; /* Paling depan biar kelihatan */
+    pointer-events: none;
+    z-index: 999;
     animation: floatUp linear infinite;
 }
 
@@ -66,7 +60,6 @@ st.markdown("""
     100% { bottom: 100vh; opacity: 0; transform: translateX(20px); }
 }
 
-/* --- UPDATE SIDEBAR --- */
 section[data-testid="stSidebar"] {
     background-color: rgba(17, 20, 29, 0.95);
     border-right: 1px solid #2d323e;
@@ -75,7 +68,6 @@ section[data-testid="stSidebar"] {
 section[data-testid="stSidebar"] * { color: #ffffff !important; }
 .stCaption { color: #cccccc !important; }
 
-/* --- TOMBOL UNDO --- */
 button[kind="secondary"] {
     background: transparent !important;
     border: 1px solid #555 !important;
@@ -83,7 +75,6 @@ button[kind="secondary"] {
     font-size: 10px !important;
 }
 
-/* --- TOMBOL UTAMA --- */
 .stButton button {
     background: #262a36 !important;
     color: #ffffff !important;
@@ -101,7 +92,6 @@ button[kind="secondary"] {
     box-shadow: 0 6px 20px rgba(0, 201, 255, 0.6);
 }
 
-/* --- KARTU BUKU --- */
 .book-card {
     background: rgba(28, 31, 38, 0.8);
     backdrop-filter: blur(5px);
@@ -130,9 +120,8 @@ button[kind="secondary"] {
 """, unsafe_allow_html=True)
 
 # =====================
-# 4. INJECT KUNANG-KUNANG (TERPISAH BIAR AMAN)
+# 4. INJECT KUNANG-KUNANG
 # =====================
-# Ini dia kuncinya: Kita masukkan HTML kunang-kunang di sini
 st.markdown(firefly_html, unsafe_allow_html=True)
 
 # =====================
@@ -164,7 +153,7 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR
+# 7. SIDEBAR (MUSIK DIPERBAIKI)
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
@@ -193,7 +182,18 @@ with st.sidebar:
 
     st.divider()
     st.header("🎧 Mood")
-    st.video("https://youtu.be/g9yQoMe8VDA")
+    
+    # --- PERBAIKAN MUSIK UNTUK HP ---
+    # Kita pakai iframe HTML biar gak ditendang ke aplikasi Youtube
+    # Link: 3 Hours Relaxing Piano (g9yQoMe8VDA)
+    video_id = "g9yQoMe8VDA"
+    youtube_html = f"""
+    <iframe width="100%" height="200" 
+    src="https://www.youtube.com/embed/{video_id}?playsinline=1" 
+    frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+    allowfullscreen></iframe>
+    """
+    st.markdown(youtube_html, unsafe_allow_html=True)
     
     if st.session_state.buku:
         st.divider()
