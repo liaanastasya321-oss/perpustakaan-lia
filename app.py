@@ -6,7 +6,7 @@ import random
 # =====================
 # 1. KONFIGURASI HALAMAN
 # =====================
-st.set_page_config(page_title="Z-Library Mini", page_icon="📚", layout="wide")
+st.set_page_config(page_title="Lia-Library Mini", page_icon="😻", layout="wide")
 
 # =====================
 # 2. LOGIKA KUNANG-KUNANG
@@ -225,11 +225,12 @@ with st.sidebar:
     """
     st.markdown(youtube_html, unsafe_allow_html=True)
     
+    # ZOOM
     if st.session_state.buku:
         st.divider()
-        zoom = st.slider("🔍 Ukuran Baca", 0.8, 2.5, 1.4, 0.1)
+        zoom = st.slider("🔍 Ukuran Baca", 0.3, 2.0, 0.6, 0.1)
     else:
-        zoom = 1.4
+        zoom = 0.6
 
 # =====================
 # 8. MAIN APP
@@ -279,7 +280,7 @@ else:
         doc = fitz.open(path)
         total_hal = doc.page_count
         
-        # === HEADER ===
+        # === HEADER (JUDUL & SELESAI) ===
         c1, c2, c3 = st.columns([1, 6, 1])
         with c1:
             if st.button("⬅️ Kembali"):
@@ -297,32 +298,35 @@ else:
 
         st.divider()
 
-        # === NAVIGASI ===
+        # === 1. RENDER GAMBAR DULUAN ===
+        # Biar posisinya di atas navigasi
+        st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
+        gambar = render_page(doc, st.session_state.halaman, zoom)
+        if gambar: st.image(gambar, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.write("") # Kasih jarak dikit
+
+        # === 2. NAVIGASI DI BAWAH ===
         n1, n2, n3 = st.columns([1, 2, 1])
         with n1:
             if st.session_state.halaman > 0:
-                if st.button("⬅️ Prev", use_container_width=True):
+                if st.button("⬅️ Sebelumnya", use_container_width=True):
                     st.session_state.halaman -= 1
                     st.rerun()
         with n2:
             st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
             
-            # Indikator Catatan
+            # Indikator Catatan (Ikut pindah ke bawah)
             id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
             if id_catatan_cek in st.session_state.catatan:
                 st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
 
         with n3:
             if st.session_state.halaman < total_hal - 1:
-                if st.button("Next ➡️", use_container_width=True):
+                if st.button("Berikutnya ➡️", use_container_width=True):
                     st.session_state.halaman += 1
                     st.rerun()
-
-        # === RENDER GAMBAR ===
-        st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
-        gambar = render_page(doc, st.session_state.halaman, zoom)
-        if gambar: st.image(gambar, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
         st.session_state.progress[b] = st.session_state.halaman
         doc.close()
