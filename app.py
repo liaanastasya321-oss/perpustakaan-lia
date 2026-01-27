@@ -2,7 +2,6 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import random
-import base64
 
 # =====================
 # 1. KONFIGURASI HALAMAN
@@ -30,7 +29,7 @@ for i in range(50):
     """
 
 # =====================
-# 3. INJECT DESAIN (CSS) - SUDAH DIPERBAIKI 🛠️
+# 3. INJECT DESAIN (CSS)
 # =====================
 st.markdown("""
 <style>
@@ -44,18 +43,13 @@ st.markdown("""
     overflow-x: hidden;
 }
 
-/* --- FIX TULISAN PILIHAN MODE (PENTING!) --- */
-/* Paksa semua label radio button & markdown jadi putih */
-div[role="radiogroup"] label, 
-div[data-testid="stMarkdownContainer"] p {
-    color: white !important;
+/* --- HILANGKAN HEADER PUTIH (INI DIA OBATNYA) --- */
+header[data-testid="stHeader"] {
+    background-color: transparent !important; /* Bikin transparan */
+    z-index: 1; /* Biar kunang-kunang bisa lewat di belakangnya */
 }
 
-/* --- HEADER TRANSPARAN --- */
-header[data-testid="stHeader"] {
-    background-color: transparent !important;
-    z-index: 1;
-}
+/* Sembunyikan garis warna-warni (decoration) di paling atas */
 div[data-testid="stDecoration"] {
     visibility: hidden;
 }
@@ -156,7 +150,6 @@ if 'sedang' not in st.session_state: st.session_state.sedang = set()
 if 'selesai' not in st.session_state: st.session_state.selesai = set()
 if 'progress' not in st.session_state: st.session_state.progress = {}
 if 'catatan' not in st.session_state: st.session_state.catatan = {} 
-if 'mode_baca' not in st.session_state: st.session_state.mode_baca = "🖼️ Mode Fokus (Gambar)"
 
 # =====================
 # 6. FUNGSI
@@ -176,19 +169,6 @@ def render_page(doc, page_num, zoom):
     try:
         return doc.load_page(page_num).get_pixmap(matrix=fitz.Matrix(zoom, zoom)).tobytes("png")
     except: return None
-
-# --- FUNGSI BARU SHOW PDF (LEBIH KUAT) ---
-def show_pdf(file_path):
-    with open(file_path, "rb") as f:
-        base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-    
-    # Pakai TAG <EMBED> biar lebih maksa browser nampilin
-    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf">'
-    
-    st.markdown(pdf_display, unsafe_allow_html=True)
-    
-    # Tombol Download buat cadangan kalau embed gagal
-    st.markdown(f'<br><a href="data:application/pdf;base64,{base64_pdf}" download="{os.path.basename(file_path)}" style="text-decoration:none;"><button style="background:#333;color:white;padding:10px;border-radius:10px;border:none;cursor:pointer;">⬇️ Download PDF ini</button></a>', unsafe_allow_html=True)
 
 # =====================
 # 7. SIDEBAR
@@ -218,8 +198,8 @@ with st.sidebar:
     else:
         st.caption("- Belum ada -")
         
-    # --- FITUR CATATAN ---
-    if st.session_state.buku and st.session_state.mode_baca == "🖼️ Mode Fokus (Gambar)":
+    # --- CATATAN ---
+    if st.session_state.buku:
         st.divider()
         st.subheader("📝 Catatan Halaman Ini")
         
@@ -234,10 +214,6 @@ with st.sidebar:
             st.session_state.catatan[id_catatan] = catatan_baru
         elif id_catatan in st.session_state.catatan:
             del st.session_state.catatan[id_catatan]
-    
-    elif st.session_state.buku and st.session_state.mode_baca == "📜 Mode Scroll (Full PDF)":
-        st.divider()
-        st.info("ℹ️ Fitur Catatan hanya tersedia di Mode Fokus (Gambar).")
 
     st.divider()
     st.header("🎧 Mood")
@@ -251,7 +227,7 @@ with st.sidebar:
     """
     st.markdown(youtube_html, unsafe_allow_html=True)
     
-    if st.session_state.buku and st.session_state.mode_baca == "🖼️ Mode Fokus (Gambar)":
+    if st.session_state.buku:
         st.divider()
         zoom = st.slider("🔍 Ukuran Baca", 0.8, 2.5, 1.4, 0.1)
     else:
@@ -301,84 +277,56 @@ else:
     b = st.session_state.buku
     path = f"buku_pdf/{b}"
     
-    # === HEADER ===
-    c1, c2, c3 = st.columns([1, 6, 1])
-    with c1:
-        if st.button("⬅️ Kembali"):
-            st.session_state.buku = None
-            st.rerun()
-    with c2:
-        st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
-    with c3:
-        if st.button("✅ Selesai"):
-            st.session_state.selesai.add(b)
-            st.session_state.sedang.discard(b)
-            st.session_state.buku = None
-            st.toast("Buku selesai! 🎉")
-            st.rerun()
-
-    st.divider()
-
-    # === PILIHAN MODE BACA (TULISAN PUTIH) ===
-    col_mode1, col_mode2 = st.columns([1, 4])
-    with col_mode1:
-        st.markdown("**Pilih Tampilan:**") # CSS di atas akan maksa ini jadi putih
-    with col_mode2:
-        pilihan_mode = st.radio(
-            "Pilih Mode", 
-            ["🖼️ Mode Fokus (Gambar)", "📜 Mode Scroll (Full PDF)"], 
-            horizontal=True, 
-            label_visibility="collapsed"
-        )
-        if pilihan_mode != st.session_state.mode_baca:
-            st.session_state.mode_baca = pilihan_mode
-            st.rerun()
-
-    st.markdown("---")
-
-    # 1. JIKA MODE SCROLL (FULL PDF)
-    if st.session_state.mode_baca == "📜 Mode Scroll (Full PDF)":
-        try:
-            show_pdf(path)
-        except Exception as e:
-            st.error(f"Gagal memuat PDF: {e}")
-
-    # 2. JIKA MODE GAMBAR (PER HALAMAN)
-    else:
-        try:
-            doc = fitz.open(path)
-            total_hal = doc.page_count
-
-            # Navigasi Halaman
-            n1, n2, n3 = st.columns([1, 2, 1])
-            with n1:
-                if st.session_state.halaman > 0:
-                    if st.button("⬅️ Prev", use_container_width=True):
-                        st.session_state.halaman -= 1
-                        st.rerun()
-            with n2:
-                st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
-                
-                id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
-                if id_catatan_cek in st.session_state.catatan:
-                    st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
-
-            with n3:
-                if st.session_state.halaman < total_hal - 1:
-                    if st.button("Next ➡️", use_container_width=True):
-                        st.session_state.halaman += 1
-                        st.rerun()
-
-            st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
-            gambar = render_page(doc, st.session_state.halaman, zoom)
-            if gambar: st.image(gambar, use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
-
-            st.session_state.progress[b] = st.session_state.halaman
-            doc.close()
-
-        except Exception as e:
-            st.error(f"Error: {e}")
-            if st.button("Kembali ke Rak"):
+    try:
+        doc = fitz.open(path)
+        total_hal = doc.page_count
+        
+        c1, c2, c3 = st.columns([1, 6, 1])
+        with c1:
+            if st.button("⬅️ Kembali"):
                 st.session_state.buku = None
                 st.rerun()
+        with c2:
+            st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
+        with c3:
+            if st.button("✅ Selesai"):
+                st.session_state.selesai.add(b)
+                st.session_state.sedang.discard(b)
+                st.session_state.buku = None
+                st.toast("Buku selesai! 🎉")
+                st.rerun()
+
+        st.divider()
+
+        n1, n2, n3 = st.columns([1, 2, 1])
+        with n1:
+            if st.session_state.halaman > 0:
+                if st.button("⬅️ Prev", use_container_width=True):
+                    st.session_state.halaman -= 1
+                    st.rerun()
+        with n2:
+            st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
+            
+            id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
+            if id_catatan_cek in st.session_state.catatan:
+                st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
+
+        with n3:
+            if st.session_state.halaman < total_hal - 1:
+                if st.button("Next ➡️", use_container_width=True):
+                    st.session_state.halaman += 1
+                    st.rerun()
+
+        st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
+        gambar = render_page(doc, st.session_state.halaman, zoom)
+        if gambar: st.image(gambar, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.session_state.progress[b] = st.session_state.halaman
+        doc.close()
+
+    except Exception as e:
+        st.error(f"Error: {e}")
+        if st.button("Kembali"):
+            st.session_state.buku = None
+            st.rerun()
