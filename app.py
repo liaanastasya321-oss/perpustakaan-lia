@@ -35,6 +35,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
 
+/* --- DASAR HALAMAN --- */
 .stApp {
     background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
     color: #eaeaea;
@@ -42,6 +43,18 @@ st.markdown("""
     overflow-x: hidden;
 }
 
+/* --- HILANGKAN HEADER PUTIH (INI DIA OBATNYA) --- */
+header[data-testid="stHeader"] {
+    background-color: transparent !important; /* Bikin transparan */
+    z-index: 1; /* Biar kunang-kunang bisa lewat di belakangnya */
+}
+
+/* Sembunyikan garis warna-warni (decoration) di paling atas */
+div[data-testid="stDecoration"] {
+    visibility: hidden;
+}
+
+/* --- KUNANG-KUNANG --- */
 .firefly {
     position: fixed;
     bottom: -10px;
@@ -60,6 +73,7 @@ st.markdown("""
     100% { bottom: 100vh; opacity: 0; transform: translateX(20px); }
 }
 
+/* --- SIDEBAR --- */
 section[data-testid="stSidebar"] {
     background-color: rgba(17, 20, 29, 0.95);
     border-right: 1px solid #2d323e;
@@ -69,6 +83,7 @@ section[data-testid="stSidebar"] * { color: #ffffff !important; }
 .stCaption { color: #cccccc !important; }
 .stTextArea textarea { background-color: #262a36 !important; color: white !important; }
 
+/* --- TOMBOL --- */
 button[kind="secondary"] {
     background: transparent !important;
     border: 1px solid #555 !important;
@@ -93,6 +108,7 @@ button[kind="secondary"] {
     box-shadow: 0 6px 20px rgba(0, 201, 255, 0.6);
 }
 
+/* --- KARTU BUKU --- */
 .book-card {
     background: rgba(28, 31, 38, 0.8);
     backdrop-filter: blur(5px);
@@ -133,7 +149,6 @@ if 'halaman' not in st.session_state: st.session_state.halaman = 0
 if 'sedang' not in st.session_state: st.session_state.sedang = set()
 if 'selesai' not in st.session_state: st.session_state.selesai = set()
 if 'progress' not in st.session_state: st.session_state.progress = {}
-# --- DATA BARU: CATATAN ---
 if 'catatan' not in st.session_state: st.session_state.catatan = {} 
 
 # =====================
@@ -156,7 +171,7 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR (MUSIK & CATATAN)
+# 7. SIDEBAR
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
@@ -183,29 +198,21 @@ with st.sidebar:
     else:
         st.caption("- Belum ada -")
         
-    # --- FITUR BARU: CATATAN HALAMAN INI ---
-    # Hanya muncul kalau lagi baca buku
+    # --- CATATAN ---
     if st.session_state.buku:
         st.divider()
         st.subheader("📝 Catatan Halaman Ini")
         
         buku_sekarang = st.session_state.buku
         hal_sekarang = st.session_state.halaman
-        
-        # Bikin ID unik: "judul_buku_halaman_1"
         id_catatan = f"{buku_sekarang}_hal_{hal_sekarang}"
-        
-        # Ambil catatan lama kalau ada
         isi_lama = st.session_state.catatan.get(id_catatan, "")
         
-        # Kotak Input
-        catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting di paragraf 2...")
+        catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting...")
         
-        # Simpan otomatis ke memori
         if catatan_baru:
             st.session_state.catatan[id_catatan] = catatan_baru
         elif id_catatan in st.session_state.catatan:
-            # Kalau dihapus kosong, hapus dari memori biar hemat
             del st.session_state.catatan[id_catatan]
 
     st.divider()
@@ -300,7 +307,6 @@ else:
         with n2:
             st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
             
-            # Tampilkan Indikator kalau ada catatan
             id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
             if id_catatan_cek in st.session_state.catatan:
                 st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
