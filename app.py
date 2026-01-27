@@ -43,13 +43,11 @@ st.markdown("""
     overflow-x: hidden;
 }
 
-/* --- HILANGKAN HEADER PUTIH (INI DIA OBATNYA) --- */
+/* --- HEADER TRANSPARAN --- */
 header[data-testid="stHeader"] {
-    background-color: transparent !important; /* Bikin transparan */
-    z-index: 1; /* Biar kunang-kunang bisa lewat di belakangnya */
+    background-color: transparent !important;
+    z-index: 1;
 }
-
-/* Sembunyikan garis warna-warni (decoration) di paling atas */
 div[data-testid="stDecoration"] {
     visibility: hidden;
 }
@@ -198,7 +196,7 @@ with st.sidebar:
     else:
         st.caption("- Belum ada -")
         
-    # --- CATATAN ---
+    # --- FITUR CATATAN ---
     if st.session_state.buku:
         st.divider()
         st.subheader("📝 Catatan Halaman Ini")
@@ -281,6 +279,7 @@ else:
         doc = fitz.open(path)
         total_hal = doc.page_count
         
+        # === HEADER ===
         c1, c2, c3 = st.columns([1, 6, 1])
         with c1:
             if st.button("⬅️ Kembali"):
@@ -298,6 +297,7 @@ else:
 
         st.divider()
 
+        # === NAVIGASI ===
         n1, n2, n3 = st.columns([1, 2, 1])
         with n1:
             if st.session_state.halaman > 0:
@@ -307,6 +307,7 @@ else:
         with n2:
             st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
             
+            # Indikator Catatan
             id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
             if id_catatan_cek in st.session_state.catatan:
                 st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
@@ -317,6 +318,7 @@ else:
                     st.session_state.halaman += 1
                     st.rerun()
 
+        # === RENDER GAMBAR ===
         st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
         gambar = render_page(doc, st.session_state.halaman, zoom)
         if gambar: st.image(gambar, use_container_width=True)
@@ -327,6 +329,6 @@ else:
 
     except Exception as e:
         st.error(f"Error: {e}")
-        if st.button("Kembali"):
+        if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
