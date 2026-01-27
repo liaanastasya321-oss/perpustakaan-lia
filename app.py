@@ -2,7 +2,7 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import random
-import base64 # Kita butuh ini buat mode PDF Scroll
+import base64
 
 # =====================
 # 1. KONFIGURASI HALAMAN
@@ -30,7 +30,7 @@ for i in range(50):
     """
 
 # =====================
-# 3. INJECT DESAIN (CSS)
+# 3. INJECT DESAIN (CSS) - SUDAH DIPERBAIKI 🛠️
 # =====================
 st.markdown("""
 <style>
@@ -42,6 +42,13 @@ st.markdown("""
     color: #eaeaea;
     font-family: 'Poppins', sans-serif;
     overflow-x: hidden;
+}
+
+/* --- FIX TULISAN PILIHAN MODE (PENTING!) --- */
+/* Paksa semua label radio button & markdown jadi putih */
+div[role="radiogroup"] label, 
+div[data-testid="stMarkdownContainer"] p {
+    color: white !important;
 }
 
 /* --- HEADER TRANSPARAN --- */
@@ -170,13 +177,18 @@ def render_page(doc, page_num, zoom):
         return doc.load_page(page_num).get_pixmap(matrix=fitz.Matrix(zoom, zoom)).tobytes("png")
     except: return None
 
-# Fungsi buat nampilin PDF Full Scroll
+# --- FUNGSI BARU SHOW PDF (LEBIH KUAT) ---
 def show_pdf(file_path):
     with open(file_path, "rb") as f:
         base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-    # Embed PDF pakai HTML iframe
-    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
+    
+    # Pakai TAG <EMBED> biar lebih maksa browser nampilin
+    pdf_display = f'<embed src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf">'
+    
     st.markdown(pdf_display, unsafe_allow_html=True)
+    
+    # Tombol Download buat cadangan kalau embed gagal
+    st.markdown(f'<br><a href="data:application/pdf;base64,{base64_pdf}" download="{os.path.basename(file_path)}" style="text-decoration:none;"><button style="background:#333;color:white;padding:10px;border-radius:10px;border:none;cursor:pointer;">⬇️ Download PDF ini</button></a>', unsafe_allow_html=True)
 
 # =====================
 # 7. SIDEBAR
@@ -206,7 +218,7 @@ with st.sidebar:
     else:
         st.caption("- Belum ada -")
         
-    # --- FITUR CATATAN (Hanya muncul di Mode Gambar) ---
+    # --- FITUR CATATAN ---
     if st.session_state.buku and st.session_state.mode_baca == "🖼️ Mode Fokus (Gambar)":
         st.divider()
         st.subheader("📝 Catatan Halaman Ini")
@@ -223,7 +235,6 @@ with st.sidebar:
         elif id_catatan in st.session_state.catatan:
             del st.session_state.catatan[id_catatan]
     
-    # Kalau lagi mode Scroll, kasih info
     elif st.session_state.buku and st.session_state.mode_baca == "📜 Mode Scroll (Full PDF)":
         st.divider()
         st.info("ℹ️ Fitur Catatan hanya tersedia di Mode Fokus (Gambar).")
@@ -240,7 +251,6 @@ with st.sidebar:
     """
     st.markdown(youtube_html, unsafe_allow_html=True)
     
-    # Slider Zoom hanya untuk Mode Gambar
     if st.session_state.buku and st.session_state.mode_baca == "🖼️ Mode Fokus (Gambar)":
         st.divider()
         zoom = st.slider("🔍 Ukuran Baca", 0.8, 2.5, 1.4, 0.1)
@@ -291,7 +301,7 @@ else:
     b = st.session_state.buku
     path = f"buku_pdf/{b}"
     
-    # === HEADER NAVIGASI ===
+    # === HEADER ===
     c1, c2, c3 = st.columns([1, 6, 1])
     with c1:
         if st.button("⬅️ Kembali"):
@@ -309,11 +319,10 @@ else:
 
     st.divider()
 
-    # === PILIHAN MODE BACA ===
-    # Tombol Pilihan Mode
+    # === PILIHAN MODE BACA (TULISAN PUTIH) ===
     col_mode1, col_mode2 = st.columns([1, 4])
     with col_mode1:
-        st.markdown("**Pilih Tampilan:**")
+        st.markdown("**Pilih Tampilan:**") # CSS di atas akan maksa ini jadi putih
     with col_mode2:
         pilihan_mode = st.radio(
             "Pilih Mode", 
@@ -321,15 +330,12 @@ else:
             horizontal=True, 
             label_visibility="collapsed"
         )
-        # Update session state kalau mode berubah
         if pilihan_mode != st.session_state.mode_baca:
             st.session_state.mode_baca = pilihan_mode
             st.rerun()
 
     st.markdown("---")
 
-    # === LOGIKA TAMPILAN ===
-    
     # 1. JIKA MODE SCROLL (FULL PDF)
     if st.session_state.mode_baca == "📜 Mode Scroll (Full PDF)":
         try:
@@ -353,7 +359,6 @@ else:
             with n2:
                 st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
                 
-                # Cek Catatan
                 id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
                 if id_catatan_cek in st.session_state.catatan:
                     st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
@@ -364,13 +369,11 @@ else:
                         st.session_state.halaman += 1
                         st.rerun()
 
-            # Render Gambar
             st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
             gambar = render_page(doc, st.session_state.halaman, zoom)
             if gambar: st.image(gambar, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-            # Simpan progress cuma aktif di mode gambar
             st.session_state.progress[b] = st.session_state.halaman
             doc.close()
 
