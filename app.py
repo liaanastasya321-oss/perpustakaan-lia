@@ -2,7 +2,7 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import random
-import pandas as pd  # Kita butuh ini buat bikin Grafik Data Science 📊
+import matplotlib.pyplot as plt # Library buat bikin grafik custom
 
 # =====================
 # 1. KONFIGURASI HALAMAN
@@ -51,6 +51,14 @@ header[data-testid="stHeader"] {
 }
 div[data-testid="stDecoration"] {
     visibility: hidden;
+}
+
+/* --- HILANGKAN TOMBOL FULLSCREEN GAMBAR --- */
+button[title="View fullscreen"] {
+    display: none !important;
+}
+[data-testid="StyledFullScreenButton"] {
+    display: none !important;
 }
 
 /* --- KUNANG-KUNANG --- */
@@ -157,15 +165,6 @@ def list_buku():
     if not os.path.exists("buku_pdf"): os.makedirs("buku_pdf")
     return [b for b in os.listdir("buku_pdf") if b.endswith(".pdf")]
 
-# --- FUNGSI DETEKSI KATEGORI ---
-def get_kategori(judul_file):
-    # Cek apakah ada kurung siku [...] di nama file
-    if "[" in judul_file and "]" in judul_file:
-        start = judul_file.find("[") + 1
-        end = judul_file.find("]")
-        return judul_file[start:end] # Ambil teks di dalam kurung
-    return "Lainnya"
-
 @st.cache_data
 def cover(path):
     try:
@@ -179,30 +178,43 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR (DENGAN STATISTIK)
+# 7. SIDEBAR (GRAFIK MINI & TRANSPARAN) 📊
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
     
-    # --- FITUR 1: STATISTIK BACAAN (DATA SCIENCE STYLE) 📊 ---
+    # --- GRAFIK STATISTIK (DIPERBAIKI) ---
     st.subheader("📊 Statistik")
     
-    # Hitung Data
     jml_sedang = len(st.session_state.sedang)
     jml_selesai = len(st.session_state.selesai)
     
-    # Tampilkan Angka Cepat
-    col_stat1, col_stat2 = st.columns(2)
-    with col_stat1: st.metric("Sedang", f"{jml_sedang}")
-    with col_stat2: st.metric("Selesai", f"{jml_selesai}")
-    
-    # Tampilkan Grafik Batang (Kalau ada datanya)
+    # Kalau ada data, tampilkan grafik
     if jml_sedang > 0 or jml_selesai > 0:
-        data_statistik = pd.DataFrame({
-            'Status': ['Sedang', 'Selesai'],
-            'Jumlah': [jml_sedang, jml_selesai]
-        })
-        st.bar_chart(data_statistik.set_index('Status'), color=["#00C9FF"]) # Warna Biru Neon
+        # Bikin Canvas Grafik Kecil (Ukuran 4x2 inch)
+        fig, ax = plt.subplots(figsize=(4, 2.5)) 
+        
+        # Set Background Transparan (Biar nyatu sama tema gelap)
+        fig.patch.set_alpha(0) 
+        ax.set_facecolor("none")
+        
+        # Data
+        kategori = ['Sedang', 'Selesai']
+        jumlah = [jml_sedang, jml_selesai]
+        warna = ['#00C9FF', '#92FE9D'] # Warna Biru & Hijau Neon
+        
+        # Bikin Bar Chart
+        bars = ax.bar(kategori, jumlah, color=warna)
+        
+        # Atur Warna Tulisan jadi Putih
+        ax.tick_params(colors='white', which='both')
+        for spine in ax.spines.values():
+            spine.set_edgecolor('white') # Garis pinggir putih
+        
+        # Tampilkan
+        st.pyplot(fig, use_container_width=True)
+    else:
+        st.caption("Ayo mulai baca bukunya! Grafik akan muncul di sini.")
 
     st.divider()
 
@@ -273,40 +285,13 @@ books = list_buku()
 if st.session_state.buku is None:
     st.markdown("<h1>✨ Galeri Buku</h1>", unsafe_allow_html=True)
     
-    # --- FITUR 2: FILTER KATEGORI 📂 ---
-    # 1. Ambil semua kategori unik dari nama file
-    semua_kategori = set()
-    for b in books:
-        kategori = get_kategori(b)
-        semua_kategori.add(kategori)
-    
-    # Urutkan dan tambahkan opsi "Semua"
-    list_opsi = ["Semua"] + sorted(list(semua_kategori))
-    
-    # Tampilkan Dropdown Filter
-    col_filter1, col_filter2 = st.columns([1, 3])
-    with col_filter1:
-        pilih_kategori = st.selectbox("📂 Pilih Rak:", list_opsi)
-    
-    # Filter list buku berdasarkan pilihan
-    buku_tampil = []
-    if pilih_kategori == "Semua":
-        buku_tampil = books
-    else:
-        for b in books:
-            if get_kategori(b) == pilih_kategori:
-                buku_tampil.append(b)
-
-    # Search Bar (Tetap ada)
     cari = st.text_input("🔍 Cari buku...", placeholder="Ketik judul buku...").lower()
-    if cari: buku_tampil = [b for b in buku_tampil if cari in b.lower()]
+    if cari: books = [b for b in books if cari in b.lower()]
 
-    if not buku_tampil: 
-        st.info("Belum ada buku di rak ini. Upload di GitHub ya! 📂")
+    if not books: st.info("Belum ada buku. Upload di GitHub ya! 📂")
     
-    # Tampilkan Grid Buku
     cols = st.columns(4)
-    for i, b in enumerate(buku_tampil):
+    for i, b in enumerate(books):
         with cols[i % 4]:
             path = f"buku_pdf/{b}"
             st.markdown("<div class='book-card'>", unsafe_allow_html=True)
@@ -314,12 +299,8 @@ if st.session_state.buku is None:
             img_cover = cover(path)
             if img_cover: st.image(img_cover, use_container_width=True)
             
-            # Bersihkan nama file dari [Kategori] biar judulnya rapi
-            judul_bersih = b.replace(".pdf", "").replace("_", " ")
-            if "[" in judul_bersih and "]" in judul_bersih:
-                judul_bersih = judul_bersih.split("]")[1].strip() # Ambil setelah kurung siku
-
-            st.markdown(f"<div class='book-title' title='{judul_bersih}'>{judul_bersih}</div>", unsafe_allow_html=True)
+            judul = b.replace(".pdf", "").replace("_", " ")
+            st.markdown(f"<div class='book-title' title='{judul}'>{judul}</div>", unsafe_allow_html=True)
             
             label_tombol = "📖 BACA"
             if b in st.session_state.selesai:
@@ -350,11 +331,7 @@ else:
                 st.session_state.buku = None
                 st.rerun()
         with c2:
-            # Judul bersih di mode baca juga
-            judul_bersih = b.replace('.pdf','').replace("_", " ")
-            if "[" in judul_bersih and "]" in judul_bersih:
-                judul_bersih = judul_bersih.split("]")[1].strip()
-            st.markdown(f"<h3 style='text-align:center; margin:0'>{judul_bersih}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
         with c3:
             if st.button("✅ Selesai"):
                 st.session_state.selesai.add(b)
@@ -365,7 +342,7 @@ else:
 
         st.divider()
 
-        # === 1. INFO HALAMAN ===
+        # === 1. INFO HALAMAN (DI ATAS) ===
         st.markdown(f"<div style='text-align:center; margin-bottom: 10px;'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
         
         # Indikator Catatan
@@ -373,7 +350,7 @@ else:
         if id_catatan_cek in st.session_state.catatan:
             st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
 
-        # === 2. GAMBAR BUKU ===
+        # === 2. GAMBAR BUKU (DI TENGAH) ===
         st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
         gambar = render_page(doc, st.session_state.halaman, zoom)
         if gambar: st.image(gambar, use_container_width=True)
@@ -381,7 +358,7 @@ else:
 
         st.write("") 
 
-        # === 3. NAVIGASI ===
+        # === 3. TOMBOL NAVIGASI (DI BAWAH) ===
         n1, n2 = st.columns([1, 1])
         with n1:
             if st.session_state.halaman > 0:
