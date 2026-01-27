@@ -2,7 +2,8 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import random
-import matplotlib.pyplot as plt # Library buat bikin grafik custom
+import matplotlib.pyplot as plt
+import base64  # PENTING: Tambahan buat bikin cover rapi
 
 # =====================
 # 1. KONFIGURASI HALAMAN
@@ -30,7 +31,7 @@ for i in range(50):
     """
 
 # =====================
-# 3. INJECT DESAIN (CSS)
+# 3. INJECT DESAIN (CSS) - SUDAH DIPERBAIKI BIAR RAPIH 🛠️
 # =====================
 st.markdown("""
 <style>
@@ -104,6 +105,7 @@ button[kind="secondary"] {
     border: 1px solid #3a3f4b;
     border-radius: 12px;
     transition: all 0.3s ease;
+    width: 100%; /* Biar tombol menuhi lebar kartu */
 }
 [data-testid="column"] .stButton button {
     background: linear-gradient(45deg, #00C9FF, #0078ff) !important;
@@ -115,7 +117,7 @@ button[kind="secondary"] {
     box-shadow: 0 6px 20px rgba(0, 201, 255, 0.6);
 }
 
-/* --- KARTU BUKU --- */
+/* --- KARTU BUKU (GRID RAPIH) --- */
 .book-card {
     background: rgba(28, 31, 38, 0.8);
     backdrop-filter: blur(5px);
@@ -125,20 +127,37 @@ button[kind="secondary"] {
     padding: 15px;
     transition: all 0.3s ease;
     margin-bottom: 20px;
+    height: 100%; /* Penting biar tinggi ngikutin isi */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 .book-card:hover {
     transform: translateY(-5px);
     border-color: #00C9FF;
 }
+
+/* --- GAMBAR COVER (UKURAN TETAP) --- */
+.cover-img {
+    width: 100%;
+    height: 280px; /* Tinggi Fix! Biar semua sama rata */
+    object-fit: cover; /* Crop otomatis kalo kepanjangan */
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+/* --- JUDUL BUKU (BATAS BARIS) --- */
 .book-title {
     text-align: center;
     font-size: 14px;
     font-weight: 600;
-    margin-top: 10px;
     color: #fff;
-    white-space: nowrap;
+    margin-bottom: 15px;
+    height: 42px; /* Tinggi Fix buat judul (muat 2 baris) */
     overflow: hidden;
-    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Maksimal 2 baris */
+    -webkit-box-orient: vertical;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -169,7 +188,8 @@ def list_buku():
 def cover(path):
     try:
         d = fitz.open(path)
-        return d.load_page(0).get_pixmap(matrix=fitz.Matrix(0.4, 0.4)).tobytes("png")
+        # Ambil gambar kualitas agak bagus dikit biar gak pecah pas di-resize
+        return d.load_page(0).get_pixmap(matrix=fitz.Matrix(0.8, 0.8)).tobytes("png")
     except: return None
 
 def render_page(doc, page_num, zoom):
@@ -178,40 +198,31 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR (GRAFIK MINI & TRANSPARAN) 📊
+# 7. SIDEBAR (GRAFIK MINI & TRANSPARAN)
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
     
-    # --- GRAFIK STATISTIK (DIPERBAIKI) ---
+    # --- GRAFIK STATISTIK ---
     st.subheader("📊 Statistik")
     
     jml_sedang = len(st.session_state.sedang)
     jml_selesai = len(st.session_state.selesai)
     
-    # Kalau ada data, tampilkan grafik
     if jml_sedang > 0 or jml_selesai > 0:
-        # Bikin Canvas Grafik Kecil (Ukuran 4x2 inch)
         fig, ax = plt.subplots(figsize=(4, 2.5)) 
-        
-        # Set Background Transparan (Biar nyatu sama tema gelap)
         fig.patch.set_alpha(0) 
         ax.set_facecolor("none")
         
-        # Data
         kategori = ['Sedang', 'Selesai']
         jumlah = [jml_sedang, jml_selesai]
-        warna = ['#00C9FF', '#92FE9D'] # Warna Biru & Hijau Neon
+        warna = ['#00C9FF', '#92FE9D'] 
         
-        # Bikin Bar Chart
         bars = ax.bar(kategori, jumlah, color=warna)
-        
-        # Atur Warna Tulisan jadi Putih
         ax.tick_params(colors='white', which='both')
         for spine in ax.spines.values():
-            spine.set_edgecolor('white') # Garis pinggir putih
+            spine.set_edgecolor('white')
         
-        # Tampilkan
         st.pyplot(fig, use_container_width=True)
     else:
         st.caption("Ayo mulai baca bukunya! Grafik akan muncul di sini.")
@@ -281,7 +292,7 @@ with st.sidebar:
 # =====================
 books = list_buku()
 
-# --- MODE GALERI ---
+# --- MODE GALERI (GRID RAPIH) ---
 if st.session_state.buku is None:
     st.markdown("<h1>✨ Galeri Buku</h1>", unsafe_allow_html=True)
     
@@ -290,30 +301,43 @@ if st.session_state.buku is None:
 
     if not books: st.info("Belum ada buku. Upload di GitHub ya! 📂")
     
+    # Grid 4 Kolom
     cols = st.columns(4)
     for i, b in enumerate(books):
         with cols[i % 4]:
             path = f"buku_pdf/{b}"
-            st.markdown("<div class='book-card'>", unsafe_allow_html=True)
             
-            img_cover = cover(path)
-            if img_cover: st.image(img_cover, use_container_width=True)
+            # 1. Ambil Gambar
+            img_bytes = cover(path)
             
+            # 2. Convert ke Base64 biar bisa masuk HTML CSS
+            if img_bytes:
+                b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                img_html = f'<img src="data:image/png;base64,{b64_img}" class="cover-img">'
+            else:
+                img_html = '<div style="height:280px; background:#333; border-radius:8px;"></div>'
+
             judul = b.replace(".pdf", "").replace("_", " ")
-            st.markdown(f"<div class='book-title' title='{judul}'>{judul}</div>", unsafe_allow_html=True)
+
+            # 3. Render Kartu Buku (HTML + CSS)
+            st.markdown(f"""
+            <div class="book-card">
+                {img_html}
+                <div class="book-title" title="{judul}">{judul}</div>
+            </div>
+            """, unsafe_allow_html=True)
             
+            # 4. Tombol Streamlit (Tetap pakai widget asli biar fungsi jalan)
             label_tombol = "📖 BACA"
             if b in st.session_state.selesai:
-                label_tombol = "♻️ BACA ULANG"
+                label_tombol = "♻️ ULANG"
             
-            if st.button(label_tombol, key=f"btn_{b}", use_container_width=True):
+            if st.button(label_tombol, key=f"btn_{b}"):
                 st.session_state.buku = b
                 st.session_state.halaman = st.session_state.progress.get(b, 0)
                 st.session_state.sedang.add(b)
                 st.session_state.selesai.discard(b)
                 st.rerun()
-            
-            st.markdown("</div>", unsafe_allow_html=True)
 
 # --- MODE BACA ---
 else:
@@ -324,7 +348,7 @@ else:
         doc = fitz.open(path)
         total_hal = doc.page_count
         
-        # === HEADER (JUDUL & TOMBOL KELUAR) ===
+        # === HEADER ===
         c1, c2, c3 = st.columns([1, 6, 1])
         with c1:
             if st.button("⬅️ Kembali"):
@@ -342,7 +366,7 @@ else:
 
         st.divider()
 
-        # === 1. INFO HALAMAN (DI ATAS) ===
+        # === 1. INFO HALAMAN ===
         st.markdown(f"<div style='text-align:center; margin-bottom: 10px;'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
         
         # Indikator Catatan
@@ -350,7 +374,7 @@ else:
         if id_catatan_cek in st.session_state.catatan:
             st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
 
-        # === 2. GAMBAR BUKU (DI TENGAH) ===
+        # === 2. GAMBAR BUKU ===
         st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
         gambar = render_page(doc, st.session_state.halaman, zoom)
         if gambar: st.image(gambar, use_container_width=True)
@@ -358,7 +382,7 @@ else:
 
         st.write("") 
 
-        # === 3. TOMBOL NAVIGASI (DI BAWAH) ===
+        # === 3. NAVIGASI ===
         n1, n2 = st.columns([1, 1])
         with n1:
             if st.session_state.halaman > 0:
@@ -382,4 +406,3 @@ else:
         if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
-
