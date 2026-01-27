@@ -67,7 +67,6 @@ section[data-testid="stSidebar"] {
 }
 section[data-testid="stSidebar"] * { color: #ffffff !important; }
 .stCaption { color: #cccccc !important; }
-.stTextArea textarea { background-color: #262a36 !important; color: white !important; }
 
 button[kind="secondary"] {
     background: transparent !important;
@@ -133,8 +132,6 @@ if 'halaman' not in st.session_state: st.session_state.halaman = 0
 if 'sedang' not in st.session_state: st.session_state.sedang = set()
 if 'selesai' not in st.session_state: st.session_state.selesai = set()
 if 'progress' not in st.session_state: st.session_state.progress = {}
-# --- DATA BARU: CATATAN ---
-if 'catatan' not in st.session_state: st.session_state.catatan = {} 
 
 # =====================
 # 6. FUNGSI
@@ -156,7 +153,7 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR (MUSIK & CATATAN)
+# 7. SIDEBAR (MUSIK DIPERBAIKI)
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
@@ -182,35 +179,13 @@ with st.sidebar:
                     st.rerun()
     else:
         st.caption("- Belum ada -")
-        
-    # --- FITUR BARU: CATATAN HALAMAN INI ---
-    # Hanya muncul kalau lagi baca buku
-    if st.session_state.buku:
-        st.divider()
-        st.subheader("📝 Catatan Halaman Ini")
-        
-        buku_sekarang = st.session_state.buku
-        hal_sekarang = st.session_state.halaman
-        
-        # Bikin ID unik: "judul_buku_halaman_1"
-        id_catatan = f"{buku_sekarang}_hal_{hal_sekarang}"
-        
-        # Ambil catatan lama kalau ada
-        isi_lama = st.session_state.catatan.get(id_catatan, "")
-        
-        # Kotak Input
-        catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting di paragraf 2...")
-        
-        # Simpan otomatis ke memori
-        if catatan_baru:
-            st.session_state.catatan[id_catatan] = catatan_baru
-        elif id_catatan in st.session_state.catatan:
-            # Kalau dihapus kosong, hapus dari memori biar hemat
-            del st.session_state.catatan[id_catatan]
 
     st.divider()
     st.header("🎧 Mood")
     
+    # --- PERBAIKAN MUSIK UNTUK HP ---
+    # Kita pakai iframe HTML biar gak ditendang ke aplikasi Youtube
+    # Link: 3 Hours Relaxing Piano (g9yQoMe8VDA)
     video_id = "g9yQoMe8VDA"
     youtube_html = f"""
     <iframe width="100%" height="200" 
@@ -299,12 +274,6 @@ else:
                     st.rerun()
         with n2:
             st.markdown(f"<div style='text-align:center; padding-top:10px'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
-            
-            # Tampilkan Indikator kalau ada catatan
-            id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
-            if id_catatan_cek in st.session_state.catatan:
-                st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
-
         with n3:
             if st.session_state.halaman < total_hal - 1:
                 if st.button("Next ➡️", use_container_width=True):
