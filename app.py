@@ -234,4 +234,176 @@ with st.sidebar:
     st.header("👤 Rak Lia")
     
     st.subheader("📊 Statistik")
-    jml_sedang = len(
+    jml_sedang = len(st.session_state.sedang)
+    jml_selesai = len(st.session_state.selesai)
+    
+    if jml_sedang > 0 or jml_selesai > 0:
+        fig, ax = plt.subplots(figsize=(4, 2.5)) 
+        fig.patch.set_alpha(0) 
+        ax.set_facecolor("none")
+        kategori = ['Sedang', 'Selesai']
+        jumlah = [jml_sedang, jml_selesai]
+        warna = ['#00C9FF', '#92FE9D'] 
+        bars = ax.bar(kategori, jumlah, color=warna)
+        ax.tick_params(colors='white', which='both')
+        for spine in ax.spines.values():
+            spine.set_edgecolor('white')
+        st.pyplot(fig, use_container_width=True)
+    else:
+        st.caption("Ayo mulai baca bukunya! Grafik akan muncul di sini.")
+
+    st.divider()
+
+    st.subheader("📖 Sedang Dibaca")
+    if st.session_state.sedang:
+        for b in list(st.session_state.sedang):
+            st.caption(f"• {b.replace('.pdf', '')}")
+    else:
+        st.caption("- Kosong -")
+
+    st.divider()
+
+    st.subheader("✅ Selesai")
+    if st.session_state.selesai:
+        for b in list(st.session_state.selesai):
+            c1, c2 = st.columns([4, 1])
+            with c1: st.caption(f"✔ {b.replace('.pdf', '')}")
+            with c2:
+                if st.button("↺", key=f"undo_{b}", help="Batal Selesai"):
+                    st.session_state.selesai.discard(b)
+                    st.session_state.sedang.add(b)
+                    st.rerun()
+    else:
+        st.caption("- Belum ada -")
+        
+    if st.session_state.buku:
+        st.divider()
+        st.subheader("📝 Catatan Halaman Ini")
+        buku_sekarang = st.session_state.buku
+        hal_sekarang = st.session_state.halaman
+        id_catatan = f"{buku_sekarang}_hal_{hal_sekarang}"
+        isi_lama = st.session_state.catatan.get(id_catatan, "")
+        catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting...")
+        if catatan_baru:
+            st.session_state.catatan[id_catatan] = catatan_baru
+        elif id_catatan in st.session_state.catatan:
+            del st.session_state.catatan[id_catatan]
+
+    st.divider()
+    st.header("🎧 Mood")
+    video_id = "g9yQoMe8VDA"
+    youtube_html = f"""
+    <iframe width="100%" height="200" 
+    src="https://www.youtube.com/embed/{video_id}?playsinline=1" 
+    frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+    allowfullscreen></iframe>
+    """
+    st.markdown(youtube_html, unsafe_allow_html=True)
+    
+    if st.session_state.buku:
+        st.divider()
+        zoom = st.slider("🔍 Ukuran Baca", 0.3, 2.0, 0.6, 0.1)
+    else:
+        zoom = 0.6
+
+# --- MAIN APP ---
+books = list_buku()
+
+if st.session_state.buku is None:
+    st.markdown("<h1>✨ Galeri Buku</h1>", unsafe_allow_html=True)
+    
+    cari = st.text_input("🔍 Cari buku...", placeholder="Ketik judul buku...").lower()
+    if cari: books = [b for b in books if cari in b.lower()]
+
+    if not books: st.info("Belum ada buku. Upload di GitHub ya! 📂")
+    
+    cols = st.columns(4)
+    for i, b in enumerate(books):
+        with cols[i % 4]:
+            path = f"buku_pdf/{b}"
+            img_bytes = cover(path)
+            if img_bytes:
+                b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                img_html = f'<img src="data:image/png;base64,{b64_img}" class="cover-img">'
+            else:
+                img_html = '<div style="height:280px; background:#333; border-radius:8px;"></div>'
+
+            judul = b.replace(".pdf", "").replace("_", " ")
+
+            st.markdown(f"""
+            <div class="book-card">
+                {img_html}
+                <div class="book-title" title="{judul}">{judul}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            label_tombol = "📖 BACA"
+            if b in st.session_state.selesai:
+                label_tombol = "♻️ ULANG"
+            
+            if st.button(label_tombol, key=f"btn_{b}"):
+                st.session_state.buku = b
+                st.session_state.halaman = st.session_state.progress.get(b, 0)
+                st.session_state.sedang.add(b)
+                st.session_state.selesai.discard(b)
+                st.rerun()
+
+else:
+    b = st.session_state.buku
+    path = f"buku_pdf/{b}"
+    
+    try:
+        doc = fitz.open(path)
+        total_hal = doc.page_count
+        
+        c1, c2, c3 = st.columns([1, 6, 1])
+        with c1:
+            if st.button("⬅️ Kembali"):
+                st.session_state.buku = None
+                st.rerun()
+        with c2:
+            st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
+        with c3:
+            if st.button("✅ Selesai"):
+                st.session_state.selesai.add(b)
+                st.session_state.sedang.discard(b)
+                st.session_state.buku = None
+                st.toast("Buku selesai! 🎉")
+                st.rerun()
+
+        st.divider()
+
+        st.markdown(f"<div style='text-align:center; margin-bottom: 10px;'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
+        id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
+        if id_catatan_cek in st.session_state.catatan:
+            st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
+
+        st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
+        gambar = render_page(doc, st.session_state.halaman, zoom)
+        if gambar: st.image(gambar, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.write("") 
+
+        n1, n2 = st.columns([1, 1])
+        with n1:
+            if st.session_state.halaman > 0:
+                if st.button("⬅️ Sebelumnya", use_container_width=True):
+                    st.session_state.halaman -= 1
+                    st.rerun()
+            else:
+                st.markdown("") 
+
+        with n2:
+            if st.session_state.halaman < total_hal - 1:
+                if st.button("Berikutnya ➡️", use_container_width=True):
+                    st.session_state.halaman += 1
+                    st.rerun()
+
+        st.session_state.progress[b] = st.session_state.halaman
+        doc.close()
+
+    except Exception as e:
+        st.error(f"Error: {e}")
+        if st.button("Kembali ke Rak"):
+            st.session_state.buku = None
+            st.rerun()
