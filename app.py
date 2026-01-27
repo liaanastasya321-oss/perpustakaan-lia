@@ -225,13 +225,11 @@ with st.sidebar:
     """
     st.markdown(youtube_html, unsafe_allow_html=True)
     
-    # === PERBAIKAN ZOOM (UKURAN BUKU) ===
     if st.session_state.buku:
         st.divider()
-        # Default diubah jadi 0.6 (Pas Layar), Range 0.3 - 2.0
-        zoom = st.slider("🔍 Ukuran Baca", 0.3, 2.0, 0.6, 0.1)
+        zoom = st.slider("🔍 Ukuran Baca", 0.8, 2.5, 1.4, 0.1)
     else:
-        zoom = 0.6
+        zoom = 1.4
 
 # =====================
 # 8. MAIN APP
