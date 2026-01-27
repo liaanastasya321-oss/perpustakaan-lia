@@ -6,7 +6,7 @@ import random
 # =====================
 # 1. KONFIGURASI HALAMAN
 # =====================
-st.set_page_config(page_title="Liaaaaa-Library Mini", page_icon="😻", layout="wide")
+st.set_page_config(page_title="Liaaaa-Library Mini", page_icon="😻", layout="wide")
 
 # =====================
 # 2. LOGIKA KUNANG-KUNANG
@@ -50,6 +50,14 @@ header[data-testid="stHeader"] {
 }
 div[data-testid="stDecoration"] {
     visibility: hidden;
+}
+
+/* --- HILANGKAN TOMBOL FULLSCREEN GAMBAR (REQ LIA) --- */
+button[title="View fullscreen"] {
+    display: none !important;
+}
+[data-testid="StyledFullScreenButton"] {
+    display: none !important;
 }
 
 /* --- KUNANG-KUNANG --- */
@@ -301,7 +309,7 @@ else:
         # === 1. INFO HALAMAN (DI ATAS) ===
         st.markdown(f"<div style='text-align:center; margin-bottom: 10px;'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
         
-        # Indikator Catatan (Juga di atas biar kelihatan)
+        # Indikator Catatan
         id_catatan_cek = f"{b}_hal_{st.session_state.halaman}"
         if id_catatan_cek in st.session_state.catatan:
             st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
@@ -315,7 +323,6 @@ else:
         st.write("") # Spasi dikit
 
         # === 3. TOMBOL NAVIGASI (DI BAWAH) ===
-        # Kita pakai 2 kolom aja biar tombolnya gede dan enak dipencet
         n1, n2 = st.columns([1, 1])
         
         with n1:
@@ -324,7 +331,6 @@ else:
                     st.session_state.halaman -= 1
                     st.rerun()
             else:
-                # Placeholder biar layout gak geser kalau di halaman 1
                 st.markdown("") 
 
         with n2:
@@ -341,4 +347,3 @@ else:
         if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
-
