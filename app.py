@@ -2,6 +2,7 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import random
+import pandas as pd  # Kita butuh ini buat bikin Grafik Data Science 📊
 
 # =====================
 # 1. KONFIGURASI HALAMAN
@@ -81,15 +82,6 @@ section[data-testid="stSidebar"] * { color: #ffffff !important; }
 .stCaption { color: #cccccc !important; }
 .stTextArea textarea { background-color: #262a36 !important; color: white !important; }
 
-/* --- METRIC & STATISTIK --- */
-div[data-testid="stMetricValue"] {
-    font-size: 24px !important;
-    color: #00C9FF !important;
-}
-div[data-testid="stMetricLabel"] {
-    color: #cccccc !important;
-}
-
 /* --- TOMBOL --- */
 button[kind="secondary"] {
     background: transparent !important;
@@ -165,6 +157,15 @@ def list_buku():
     if not os.path.exists("buku_pdf"): os.makedirs("buku_pdf")
     return [b for b in os.listdir("buku_pdf") if b.endswith(".pdf")]
 
+# --- FUNGSI DETEKSI KATEGORI ---
+def get_kategori(judul_file):
+    # Cek apakah ada kurung siku [...] di nama file
+    if "[" in judul_file and "]" in judul_file:
+        start = judul_file.find("[") + 1
+        end = judul_file.find("]")
+        return judul_file[start:end] # Ambil teks di dalam kurung
+    return "Lainnya"
+
 @st.cache_data
 def cover(path):
     try:
@@ -180,19 +181,29 @@ def render_page(doc, page_num, zoom):
 # =====================
 # 7. SIDEBAR (DENGAN STATISTIK)
 # =====================
-books = list_buku() # Load buku dulu biar bisa dihitung
-
 with st.sidebar:
     st.header("👤 Rak Lia")
     
-    # --- FITUR BARU: STATISTIK MINI ---
+    # --- FITUR 1: STATISTIK BACAAN (DATA SCIENCE STYLE) 📊 ---
     st.subheader("📊 Statistik")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Koleksi", f"{len(books)}")
-    with col2:
-        st.metric("Tamat", f"{len(st.session_state.selesai)}")
     
+    # Hitung Data
+    jml_sedang = len(st.session_state.sedang)
+    jml_selesai = len(st.session_state.selesai)
+    
+    # Tampilkan Angka Cepat
+    col_stat1, col_stat2 = st.columns(2)
+    with col_stat1: st.metric("Sedang", f"{jml_sedang}")
+    with col_stat2: st.metric("Selesai", f"{jml_selesai}")
+    
+    # Tampilkan Grafik Batang (Kalau ada datanya)
+    if jml_sedang > 0 or jml_selesai > 0:
+        data_statistik = pd.DataFrame({
+            'Status': ['Sedang', 'Selesai'],
+            'Jumlah': [jml_sedang, jml_selesai]
+        })
+        st.bar_chart(data_statistik.set_index('Status'), color=["#00C9FF"]) # Warna Biru Neon
+
     st.divider()
 
     st.subheader("📖 Sedang Dibaca")
@@ -256,18 +267,46 @@ with st.sidebar:
 # =====================
 # 8. MAIN APP
 # =====================
+books = list_buku()
 
 # --- MODE GALERI ---
 if st.session_state.buku is None:
     st.markdown("<h1>✨ Galeri Buku</h1>", unsafe_allow_html=True)
     
-    cari = st.text_input("🔍 Cari buku...", placeholder="Ketik judul buku...").lower()
-    if cari: books = [b for b in books if cari in b.lower()]
-
-    if not books: st.info("Belum ada buku. Upload di GitHub ya! 📂")
+    # --- FITUR 2: FILTER KATEGORI 📂 ---
+    # 1. Ambil semua kategori unik dari nama file
+    semua_kategori = set()
+    for b in books:
+        kategori = get_kategori(b)
+        semua_kategori.add(kategori)
     
+    # Urutkan dan tambahkan opsi "Semua"
+    list_opsi = ["Semua"] + sorted(list(semua_kategori))
+    
+    # Tampilkan Dropdown Filter
+    col_filter1, col_filter2 = st.columns([1, 3])
+    with col_filter1:
+        pilih_kategori = st.selectbox("📂 Pilih Rak:", list_opsi)
+    
+    # Filter list buku berdasarkan pilihan
+    buku_tampil = []
+    if pilih_kategori == "Semua":
+        buku_tampil = books
+    else:
+        for b in books:
+            if get_kategori(b) == pilih_kategori:
+                buku_tampil.append(b)
+
+    # Search Bar (Tetap ada)
+    cari = st.text_input("🔍 Cari buku...", placeholder="Ketik judul buku...").lower()
+    if cari: buku_tampil = [b for b in buku_tampil if cari in b.lower()]
+
+    if not buku_tampil: 
+        st.info("Belum ada buku di rak ini. Upload di GitHub ya! 📂")
+    
+    # Tampilkan Grid Buku
     cols = st.columns(4)
-    for i, b in enumerate(books):
+    for i, b in enumerate(buku_tampil):
         with cols[i % 4]:
             path = f"buku_pdf/{b}"
             st.markdown("<div class='book-card'>", unsafe_allow_html=True)
@@ -275,8 +314,12 @@ if st.session_state.buku is None:
             img_cover = cover(path)
             if img_cover: st.image(img_cover, use_container_width=True)
             
-            judul = b.replace(".pdf", "").replace("_", " ")
-            st.markdown(f"<div class='book-title' title='{judul}'>{judul}</div>", unsafe_allow_html=True)
+            # Bersihkan nama file dari [Kategori] biar judulnya rapi
+            judul_bersih = b.replace(".pdf", "").replace("_", " ")
+            if "[" in judul_bersih and "]" in judul_bersih:
+                judul_bersih = judul_bersih.split("]")[1].strip() # Ambil setelah kurung siku
+
+            st.markdown(f"<div class='book-title' title='{judul_bersih}'>{judul_bersih}</div>", unsafe_allow_html=True)
             
             label_tombol = "📖 BACA"
             if b in st.session_state.selesai:
@@ -300,15 +343,6 @@ else:
         doc = fitz.open(path)
         total_hal = doc.page_count
         
-        # --- FITUR BARU: PROGRESS BAR DI SIDEBAR ---
-        # Kita hitung persentase bacaan
-        persen = (st.session_state.halaman + 1) / total_hal
-        with st.sidebar:
-            st.divider()
-            st.write(f"📈 **Progress Baca:** {int(persen * 100)}%")
-            st.progress(persen)
-            st.caption(f"Hal {st.session_state.halaman + 1} dari {total_hal}")
-
         # === HEADER (JUDUL & TOMBOL KELUAR) ===
         c1, c2, c3 = st.columns([1, 6, 1])
         with c1:
@@ -316,7 +350,11 @@ else:
                 st.session_state.buku = None
                 st.rerun()
         with c2:
-            st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
+            # Judul bersih di mode baca juga
+            judul_bersih = b.replace('.pdf','').replace("_", " ")
+            if "[" in judul_bersih and "]" in judul_bersih:
+                judul_bersih = judul_bersih.split("]")[1].strip()
+            st.markdown(f"<h3 style='text-align:center; margin:0'>{judul_bersih}</h3>", unsafe_allow_html=True)
         with c3:
             if st.button("✅ Selesai"):
                 st.session_state.selesai.add(b)
@@ -327,7 +365,7 @@ else:
 
         st.divider()
 
-        # === 1. INFO HALAMAN (DI ATAS) ===
+        # === 1. INFO HALAMAN ===
         st.markdown(f"<div style='text-align:center; margin-bottom: 10px;'><b>Halaman {st.session_state.halaman + 1} / {total_hal}</b></div>", unsafe_allow_html=True)
         
         # Indikator Catatan
@@ -335,36 +373,15 @@ else:
         if id_catatan_cek in st.session_state.catatan:
             st.info(f"📝 Catatan: {st.session_state.catatan[id_catatan_cek]}")
 
-        # === 2. GAMBAR BUKU (DI TENGAH) ===
+        # === 2. GAMBAR BUKU ===
         st.markdown("<div style='text-align:center; background:rgba(22, 24, 29, 0.9); padding:10px; border-radius:15px; border:1px solid #333'>", unsafe_allow_html=True)
         gambar = render_page(doc, st.session_state.halaman, zoom)
         if gambar: st.image(gambar, use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.write("") # Spasi dikit
+        st.write("") 
 
-        # === 3. TOMBOL NAVIGASI (DI BAWAH) ===
+        # === 3. NAVIGASI ===
         n1, n2 = st.columns([1, 1])
-        
         with n1:
-            if st.session_state.halaman > 0:
-                if st.button("⬅️ Sebelumnya", use_container_width=True):
-                    st.session_state.halaman -= 1
-                    st.rerun()
-            else:
-                st.markdown("") 
-
-        with n2:
-            if st.session_state.halaman < total_hal - 1:
-                if st.button("Berikutnya ➡️", use_container_width=True):
-                    st.session_state.halaman += 1
-                    st.rerun()
-
-        st.session_state.progress[b] = st.session_state.halaman
-        doc.close()
-
-    except Exception as e:
-        st.error(f"Error: {e}")
-        if st.button("Kembali ke Rak"):
-            st.session_state.buku = None
-            st.rerun()
+            if st.session_state.halaman >
