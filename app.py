@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt # Library buat bikin grafik custom
 # =====================
 # 1. KONFIGURASI HALAMAN
 # =====================
-st.set_page_config(page_title="Z-Library Mini", page_icon="📚", layout="wide")
+st.set_page_config(page_title="Liaaaa-Library Mini", page_icon="😻", layout="wide")
 
 # =====================
 # 2. LOGIKA KUNANG-KUNANG
@@ -382,3 +382,4 @@ else:
         if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
+
