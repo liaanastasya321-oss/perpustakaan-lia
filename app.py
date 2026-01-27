@@ -6,7 +6,7 @@ import random
 # =====================
 # 1. KONFIGURASI HALAMAN
 # =====================
-st.set_page_config(page_title="Liaaaa-Library Mini", page_icon="😻", layout="wide")
+st.set_page_config(page_title="Z-Library Mini", page_icon="📚", layout="wide")
 
 # =====================
 # 2. LOGIKA KUNANG-KUNANG
@@ -52,14 +52,6 @@ div[data-testid="stDecoration"] {
     visibility: hidden;
 }
 
-/* --- HILANGKAN TOMBOL FULLSCREEN GAMBAR (REQ LIA) --- */
-button[title="View fullscreen"] {
-    display: none !important;
-}
-[data-testid="StyledFullScreenButton"] {
-    display: none !important;
-}
-
 /* --- KUNANG-KUNANG --- */
 .firefly {
     position: fixed;
@@ -88,6 +80,15 @@ section[data-testid="stSidebar"] {
 section[data-testid="stSidebar"] * { color: #ffffff !important; }
 .stCaption { color: #cccccc !important; }
 .stTextArea textarea { background-color: #262a36 !important; color: white !important; }
+
+/* --- METRIC & STATISTIK --- */
+div[data-testid="stMetricValue"] {
+    font-size: 24px !important;
+    color: #00C9FF !important;
+}
+div[data-testid="stMetricLabel"] {
+    color: #cccccc !important;
+}
 
 /* --- TOMBOL --- */
 button[kind="secondary"] {
@@ -177,11 +178,23 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR
+# 7. SIDEBAR (DENGAN STATISTIK)
 # =====================
+books = list_buku() # Load buku dulu biar bisa dihitung
+
 with st.sidebar:
     st.header("👤 Rak Lia")
     
+    # --- FITUR BARU: STATISTIK MINI ---
+    st.subheader("📊 Statistik")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Koleksi", f"{len(books)}")
+    with col2:
+        st.metric("Tamat", f"{len(st.session_state.selesai)}")
+    
+    st.divider()
+
     st.subheader("📖 Sedang Dibaca")
     if st.session_state.sedang:
         for b in list(st.session_state.sedang):
@@ -243,7 +256,6 @@ with st.sidebar:
 # =====================
 # 8. MAIN APP
 # =====================
-books = list_buku()
 
 # --- MODE GALERI ---
 if st.session_state.buku is None:
@@ -288,6 +300,15 @@ else:
         doc = fitz.open(path)
         total_hal = doc.page_count
         
+        # --- FITUR BARU: PROGRESS BAR DI SIDEBAR ---
+        # Kita hitung persentase bacaan
+        persen = (st.session_state.halaman + 1) / total_hal
+        with st.sidebar:
+            st.divider()
+            st.write(f"📈 **Progress Baca:** {int(persen * 100)}%")
+            st.progress(persen)
+            st.caption(f"Hal {st.session_state.halaman + 1} dari {total_hal}")
+
         # === HEADER (JUDUL & TOMBOL KELUAR) ===
         c1, c2, c3 = st.columns([1, 6, 1])
         with c1:
