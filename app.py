@@ -4,6 +4,7 @@ import os
 import random
 import matplotlib.pyplot as plt
 import base64
+import json # <--- INI OBAT PIKUNNYA (Buat simpan data)
 
 # =====================
 # 1. KONFIGURASI HALAMAN
@@ -11,208 +12,114 @@ import base64
 st.set_page_config(page_title="Liaaaa-Library Mini", page_icon="😻", layout="wide")
 
 # =====================
-# 2. SISTEM LOGIN (GERBANG RAHASIA) 🔐
+# 2. SISTEM PENYIMPANAN DATA (DATABASE JSON) 💾
+# =====================
+FILE_DATABASE = "data_perpus.json"
+
+def load_data():
+    """Mengambil data dari file (biar gak hilang pas refresh)"""
+    if not os.path.exists(FILE_DATABASE):
+        # Kalau file belum ada, bikin data kosong
+        return {"sedang": [], "selesai": [], "progress": {}, "catatan": {}}
+    
+    try:
+        with open(FILE_DATABASE, "r") as f:
+            data = json.load(f)
+            # Kembalikan list jadi set biar kodingan bawah gak error
+            data["sedang"] = set(data["sedang"])
+            data["selesai"] = set(data["selesai"])
+            return data
+    except:
+        return {"sedang": [], "selesai": [], "progress": {}, "catatan": {}}
+
+def save_data():
+    """Menyimpan data ke file (biar aman)"""
+    data_simpan = {
+        "sedang": list(st.session_state.sedang), # Ubah set ke list biar bisa disimpen JSON
+        "selesai": list(st.session_state.selesai),
+        "progress": st.session_state.progress,
+        "catatan": st.session_state.catatan
+    }
+    with open(FILE_DATABASE, "w") as f:
+        json.dump(data_simpan, f)
+
+# =====================
+# 3. SISTEM LOGIN 🔐
 # =====================
 def check_password():
-    """Fungsi mengecek password"""
     def password_entered():
         if st.session_state["password"] == st.secrets["password"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Hapus password dari memori biar aman
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # Awal buka, belum login
-        st.text_input(
-            "🔒 Masukkan Password Akses:", 
-            type="password", 
-            on_change=password_entered, 
-            key="password"
-        )
+        st.text_input("🔒 Masukkan Password Akses:", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        # Password salah
-        st.text_input(
-            "🔒 Masukkan Password Akses:", 
-            type="password", 
-            on_change=password_entered, 
-            key="password"
-        )
+        st.text_input("🔒 Masukkan Password Akses:", type="password", on_change=password_entered, key="password")
         st.error("🚫 Password salah, coba lagi ya!")
         return False
     else:
-        # Password benar
         return True
 
-# --- CEK LOGIN DULU SEBELUM LANJUT ---
 if not check_password():
-    st.stop()  # <--- INI KUNCINYA! Kalau belum login, stop di sini.
+    st.stop()
 
 # =====================
-# 3. KODE APLIKASI UTAMA (HANYA JALAN KALAU SUDAH LOGIN)
+# 4. INIT STATE (LOAD DARI FILE)
 # =====================
+# Ambil data dari file database dulu!
+data_awal = load_data()
 
-# --- LOGIKA KUNANG-KUNANG ---
+if 'buku' not in st.session_state: st.session_state.buku = None
+if 'halaman' not in st.session_state: st.session_state.halaman = 0
+# State ini sekarang ngambil dari data_awal (Database)
+if 'sedang' not in st.session_state: st.session_state.sedang = data_awal["sedang"]
+if 'selesai' not in st.session_state: st.session_state.selesai = data_awal["selesai"]
+if 'progress' not in st.session_state: st.session_state.progress = data_awal["progress"]
+if 'catatan' not in st.session_state: st.session_state.catatan = data_awal["catatan"]
+
+# =====================
+# 5. ASSETS & CSS
+# =====================
 firefly_html = ""
 for i in range(50):
     left = random.randint(1, 99)
     delay = random.uniform(0, 20)
     duration = random.uniform(10, 20)
     size = random.randint(2, 5)
-    
-    firefly_html += f"""
-    <div class="firefly" style="
-        left: {left}%; 
-        animation-delay: {delay}s; 
-        animation-duration: {duration}s;
-        width: {size}px;
-        height: {size}px;
-    "></div>
-    """
+    firefly_html += f"""<div class="firefly" style="left: {left}%; animation-delay: {delay}s; animation-duration: {duration}s; width: {size}px; height: {size}px;"></div>"""
 
-# --- INJECT DESAIN (CSS) ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-
-/* --- DASAR HALAMAN --- */
-.stApp {
-    background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
-    color: #eaeaea;
-    font-family: 'Poppins', sans-serif;
-    overflow-x: hidden;
-}
-
-/* --- HEADER TRANSPARAN --- */
-header[data-testid="stHeader"] {
-    background-color: transparent !important;
-    z-index: 1;
-}
-div[data-testid="stDecoration"] {
-    visibility: hidden;
-}
-
-/* --- HILANGKAN TOMBOL FULLSCREEN GAMBAR --- */
-button[title="View fullscreen"] {
-    display: none !important;
-}
-[data-testid="StyledFullScreenButton"] {
-    display: none !important;
-}
-
-/* --- KUNANG-KUNANG --- */
-.firefly {
-    position: fixed;
-    bottom: -10px;
-    background: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 0 15px 2px rgba(0, 201, 255, 0.6);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 999;
-    animation: floatUp linear infinite;
-}
-
-@keyframes floatUp {
-    0% { bottom: -10px; opacity: 0; transform: translateX(0); }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { bottom: 100vh; opacity: 0; transform: translateX(20px); }
-}
-
-/* --- SIDEBAR --- */
-section[data-testid="stSidebar"] {
-    background-color: rgba(17, 20, 29, 0.95);
-    border-right: 1px solid #2d323e;
-    z-index: 1000;
-}
+.stApp { background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%); color: #eaeaea; font-family: 'Poppins', sans-serif; overflow-x: hidden; }
+header[data-testid="stHeader"] { background-color: transparent !important; z-index: 1; }
+div[data-testid="stDecoration"] { visibility: hidden; }
+button[title="View fullscreen"], [data-testid="StyledFullScreenButton"] { display: none !important; }
+.firefly { position: fixed; bottom: -10px; background: rgba(255, 255, 255, 0.5); box-shadow: 0 0 15px 2px rgba(0, 201, 255, 0.6); border-radius: 50%; pointer-events: none; z-index: 999; animation: floatUp linear infinite; }
+@keyframes floatUp { 0% { bottom: -10px; opacity: 0; transform: translateX(0); } 10% { opacity: 1; } 90% { opacity: 1; } 100% { bottom: 100vh; opacity: 0; transform: translateX(20px); } }
+section[data-testid="stSidebar"] { background-color: rgba(17, 20, 29, 0.95); border-right: 1px solid #2d323e; z-index: 1000; }
 section[data-testid="stSidebar"] * { color: #ffffff !important; }
 .stCaption { color: #cccccc !important; }
 .stTextArea textarea { background-color: #262a36 !important; color: white !important; }
-
-/* --- TOMBOL --- */
-button[kind="secondary"] {
-    background: transparent !important;
-    border: 1px solid #555 !important;
-    color: white !important;
-    font-size: 10px !important;
-}
-
-.stButton button {
-    background: #262a36 !important;
-    color: #ffffff !important;
-    border: 1px solid #3a3f4b;
-    border-radius: 12px;
-    transition: all 0.3s ease;
-    width: 100%;
-}
-[data-testid="column"] .stButton button {
-    background: linear-gradient(45deg, #00C9FF, #0078ff) !important;
-    border: none !important;
-    box-shadow: 0 4px 15px rgba(0, 201, 255, 0.3);
-}
-[data-testid="column"] .stButton button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 201, 255, 0.6);
-}
-
-/* --- KARTU BUKU (GRID RAPIH) --- */
-.book-card {
-    background: rgba(28, 31, 38, 0.8);
-    backdrop-filter: blur(5px);
-    border: 1px solid #2d323e;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-    border-radius: 16px;
-    padding: 15px;
-    transition: all 0.3s ease;
-    margin-bottom: 20px;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-.book-card:hover {
-    transform: translateY(-5px);
-    border-color: #00C9FF;
-}
-
-/* --- GAMBAR COVER (UKURAN TETAP) --- */
-.cover-img {
-    width: 100%;
-    height: 280px;
-    object-fit: cover;
-    border-radius: 8px;
-    margin-bottom: 12px;
-}
-
-/* --- JUDUL BUKU (BATAS BARIS) --- */
-.book-title {
-    text-align: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 15px;
-    height: 42px;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
+button[kind="secondary"] { background: transparent !important; border: 1px solid #555 !important; color: white !important; font-size: 10px !important; }
+.stButton button { background: #262a36 !important; color: #ffffff !important; border: 1px solid #3a3f4b; border-radius: 12px; transition: all 0.3s ease; width: 100%; }
+[data-testid="column"] .stButton button { background: linear-gradient(45deg, #00C9FF, #0078ff) !important; border: none !important; box-shadow: 0 4px 15px rgba(0, 201, 255, 0.3); }
+[data-testid="column"] .stButton button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 201, 255, 0.6); }
+.book-card { background: rgba(28, 31, 38, 0.8); backdrop-filter: blur(5px); border: 1px solid #2d323e; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); border-radius: 16px; padding: 15px; transition: all 0.3s ease; margin-bottom: 20px; height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+.book-card:hover { transform: translateY(-5px); border-color: #00C9FF; }
+.cover-img { width: 100%; height: 280px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; }
+.book-title { text-align: center; font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 15px; height: 42px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 </style>
 """, unsafe_allow_html=True)
-
-# --- INJECT KUNANG-KUNANG ---
 st.markdown(firefly_html, unsafe_allow_html=True)
 
-# --- STATE MANAGEMENT ---
-if 'buku' not in st.session_state: st.session_state.buku = None
-if 'halaman' not in st.session_state: st.session_state.halaman = 0
-if 'sedang' not in st.session_state: st.session_state.sedang = set()
-if 'selesai' not in st.session_state: st.session_state.selesai = set()
-if 'progress' not in st.session_state: st.session_state.progress = {}
-if 'catatan' not in st.session_state: st.session_state.catatan = {} 
-
-# --- FUNGSI ---
+# =====================
+# 6. FUNGSI UTAMA
+# =====================
 def list_buku():
     if not os.path.exists("buku_pdf"): os.makedirs("buku_pdf")
     return [b for b in os.listdir("buku_pdf") if b.endswith(".pdf")]
@@ -229,7 +136,9 @@ def render_page(doc, page_num, zoom):
         return doc.load_page(page_num).get_pixmap(matrix=fitz.Matrix(zoom, zoom)).tobytes("png")
     except: return None
 
-# --- SIDEBAR ---
+# =====================
+# 7. SIDEBAR
+# =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
     
@@ -250,7 +159,7 @@ with st.sidebar:
             spine.set_edgecolor('white')
         st.pyplot(fig, use_container_width=True)
     else:
-        st.caption("Ayo mulai baca bukunya! Grafik akan muncul di sini.")
+        st.caption("Grafik akan muncul jika ada aktivitas.")
 
     st.divider()
 
@@ -269,9 +178,10 @@ with st.sidebar:
             c1, c2 = st.columns([4, 1])
             with c1: st.caption(f"✔ {b.replace('.pdf', '')}")
             with c2:
-                if st.button("↺", key=f"undo_{b}", help="Batal Selesai"):
+                if st.button("↺", key=f"undo_{b}"):
                     st.session_state.selesai.discard(b)
                     st.session_state.sedang.add(b)
+                    save_data() # SIMPAN DATA!
                     st.rerun()
     else:
         st.caption("- Belum ada -")
@@ -283,21 +193,23 @@ with st.sidebar:
         hal_sekarang = st.session_state.halaman
         id_catatan = f"{buku_sekarang}_hal_{hal_sekarang}"
         isi_lama = st.session_state.catatan.get(id_catatan, "")
-        catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting...")
-        if catatan_baru:
-            st.session_state.catatan[id_catatan] = catatan_baru
-        elif id_catatan in st.session_state.catatan:
-            del st.session_state.catatan[id_catatan]
+        
+        # PENTING: Pake key unik biar gak kereset pas ngetik
+        catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting...", key="input_catatan")
+        
+        # Tombol Simpan Catatan (Biar pasti kesimpen)
+        if st.button("💾 Simpan Catatan"):
+            if catatan_baru:
+                st.session_state.catatan[id_catatan] = catatan_baru
+            elif id_catatan in st.session_state.catatan:
+                del st.session_state.catatan[id_catatan]
+            save_data() # SIMPAN DATA!
+            st.toast("Catatan tersimpan!")
 
     st.divider()
     st.header("🎧 Mood")
     video_id = "g9yQoMe8VDA"
-    youtube_html = f"""
-    <iframe width="100%" height="200" 
-    src="https://www.youtube.com/embed/{video_id}?playsinline=1" 
-    frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-    allowfullscreen></iframe>
-    """
+    youtube_html = f"""<iframe width="100%" height="200" src="https://www.youtube.com/embed/{video_id}?playsinline=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>"""
     st.markdown(youtube_html, unsafe_allow_html=True)
     
     if st.session_state.buku:
@@ -306,7 +218,9 @@ with st.sidebar:
     else:
         zoom = 0.6
 
-# --- MAIN APP ---
+# =====================
+# 8. MAIN APP
+# =====================
 books = list_buku()
 
 if st.session_state.buku is None:
@@ -330,22 +244,17 @@ if st.session_state.buku is None:
 
             judul = b.replace(".pdf", "").replace("_", " ")
 
-            st.markdown(f"""
-            <div class="book-card">
-                {img_html}
-                <div class="book-title" title="{judul}">{judul}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="book-card">{img_html}<div class="book-title" title="{judul}">{judul}</div></div>""", unsafe_allow_html=True)
             
             label_tombol = "📖 BACA"
-            if b in st.session_state.selesai:
-                label_tombol = "♻️ ULANG"
+            if b in st.session_state.selesai: label_tombol = "♻️ ULANG"
             
             if st.button(label_tombol, key=f"btn_{b}"):
                 st.session_state.buku = b
-                st.session_state.halaman = st.session_state.progress.get(b, 0)
+                st.session_state.halaman = st.session_state.progress.get(b, 0) # Ambil progress terakhir
                 st.session_state.sedang.add(b)
                 st.session_state.selesai.discard(b)
+                save_data() # SIMPAN DATA!
                 st.rerun()
 
 else:
@@ -360,6 +269,7 @@ else:
         with c1:
             if st.button("⬅️ Kembali"):
                 st.session_state.buku = None
+                save_data() # Simpan dulu sebelum keluar
                 st.rerun()
         with c2:
             st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
@@ -369,6 +279,7 @@ else:
                 st.session_state.sedang.discard(b)
                 st.session_state.buku = None
                 st.toast("Buku selesai! 🎉")
+                save_data() # SIMPAN DATA!
                 st.rerun()
 
         st.divider()
@@ -389,6 +300,9 @@ else:
             if st.session_state.halaman > 0:
                 if st.button("⬅️ Sebelumnya", use_container_width=True):
                     st.session_state.halaman -= 1
+                    # Update progress setiap pindah halaman
+                    st.session_state.progress[b] = st.session_state.halaman 
+                    save_data() # SIMPAN DATA!
                     st.rerun()
             else:
                 st.markdown("") 
@@ -397,6 +311,9 @@ else:
             if st.session_state.halaman < total_hal - 1:
                 if st.button("Berikutnya ➡️", use_container_width=True):
                     st.session_state.halaman += 1
+                    # Update progress setiap pindah halaman
+                    st.session_state.progress[b] = st.session_state.halaman
+                    save_data() # SIMPAN DATA!
                     st.rerun()
 
         st.session_state.progress[b] = st.session_state.halaman
