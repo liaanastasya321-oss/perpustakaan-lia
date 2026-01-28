@@ -4,7 +4,7 @@ import os
 import random
 import matplotlib.pyplot as plt
 import base64
-import json # <--- INI OBAT PIKUNNYA (Buat simpan data)
+import json 
 
 # =====================
 # 1. KONFIGURASI HALAMAN
@@ -17,31 +17,38 @@ st.set_page_config(page_title="Liaaaa-Library Mini", page_icon="😻", layout="w
 FILE_DATABASE = "data_perpus.json"
 
 def load_data():
-    """Mengambil data dari file (biar gak hilang pas refresh)"""
+    """Mengambil data dari file"""
     if not os.path.exists(FILE_DATABASE):
-        # Kalau file belum ada, bikin data kosong
-        return {"sedang": [], "selesai": [], "progress": {}, "catatan": {}}
+        # FIX ERROR: Defaultnya harus set() bukan []
+        return {"sedang": set(), "selesai": set(), "progress": {}, "catatan": {}}
     
     try:
         with open(FILE_DATABASE, "r") as f:
             data = json.load(f)
-            # Kembalikan list jadi set biar kodingan bawah gak error
-            data["sedang"] = set(data["sedang"])
-            data["selesai"] = set(data["selesai"])
-            return data
+            # FIX ERROR: Paksa ubah list dari JSON menjadi set kembali
+            return {
+                "sedang": set(data.get("sedang", [])),
+                "selesai": set(data.get("selesai", [])),
+                "progress": data.get("progress", {}),
+                "catatan": data.get("catatan", {})
+            }
     except:
-        return {"sedang": [], "selesai": [], "progress": {}, "catatan": {}}
+        # Kalau file rusak, reset ulang
+        return {"sedang": set(), "selesai": set(), "progress": {}, "catatan": {}}
 
 def save_data():
-    """Menyimpan data ke file (biar aman)"""
+    """Menyimpan data ke file"""
     data_simpan = {
-        "sedang": list(st.session_state.sedang), # Ubah set ke list biar bisa disimpen JSON
+        "sedang": list(st.session_state.sedang), # Ubah set ke list biar bisa masuk JSON
         "selesai": list(st.session_state.selesai),
         "progress": st.session_state.progress,
         "catatan": st.session_state.catatan
     }
-    with open(FILE_DATABASE, "w") as f:
-        json.dump(data_simpan, f)
+    try:
+        with open(FILE_DATABASE, "w") as f:
+            json.dump(data_simpan, f)
+    except Exception as e:
+        st.error(f"Gagal menyimpan data: {e}")
 
 # =====================
 # 3. SISTEM LOGIN 🔐
@@ -70,12 +77,11 @@ if not check_password():
 # =====================
 # 4. INIT STATE (LOAD DARI FILE)
 # =====================
-# Ambil data dari file database dulu!
 data_awal = load_data()
 
 if 'buku' not in st.session_state: st.session_state.buku = None
 if 'halaman' not in st.session_state: st.session_state.halaman = 0
-# State ini sekarang ngambil dari data_awal (Database)
+# Pastikan ini ngambil dari data_awal yang sudah dikonversi jadi set
 if 'sedang' not in st.session_state: st.session_state.sedang = data_awal["sedang"]
 if 'selesai' not in st.session_state: st.session_state.selesai = data_awal["selesai"]
 if 'progress' not in st.session_state: st.session_state.progress = data_awal["progress"]
@@ -194,10 +200,8 @@ with st.sidebar:
         id_catatan = f"{buku_sekarang}_hal_{hal_sekarang}"
         isi_lama = st.session_state.catatan.get(id_catatan, "")
         
-        # PENTING: Pake key unik biar gak kereset pas ngetik
         catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting...", key="input_catatan")
         
-        # Tombol Simpan Catatan (Biar pasti kesimpen)
         if st.button("💾 Simpan Catatan"):
             if catatan_baru:
                 st.session_state.catatan[id_catatan] = catatan_baru
@@ -251,7 +255,7 @@ if st.session_state.buku is None:
             
             if st.button(label_tombol, key=f"btn_{b}"):
                 st.session_state.buku = b
-                st.session_state.halaman = st.session_state.progress.get(b, 0) # Ambil progress terakhir
+                st.session_state.halaman = st.session_state.progress.get(b, 0)
                 st.session_state.sedang.add(b)
                 st.session_state.selesai.discard(b)
                 save_data() # SIMPAN DATA!
@@ -269,7 +273,7 @@ else:
         with c1:
             if st.button("⬅️ Kembali"):
                 st.session_state.buku = None
-                save_data() # Simpan dulu sebelum keluar
+                save_data()
                 st.rerun()
         with c2:
             st.markdown(f"<h3 style='text-align:center; margin:0'>{b.replace('.pdf','')}</h3>", unsafe_allow_html=True)
@@ -300,7 +304,6 @@ else:
             if st.session_state.halaman > 0:
                 if st.button("⬅️ Sebelumnya", use_container_width=True):
                     st.session_state.halaman -= 1
-                    # Update progress setiap pindah halaman
                     st.session_state.progress[b] = st.session_state.halaman 
                     save_data() # SIMPAN DATA!
                     st.rerun()
@@ -309,18 +312,4 @@ else:
 
         with n2:
             if st.session_state.halaman < total_hal - 1:
-                if st.button("Berikutnya ➡️", use_container_width=True):
-                    st.session_state.halaman += 1
-                    # Update progress setiap pindah halaman
-                    st.session_state.progress[b] = st.session_state.halaman
-                    save_data() # SIMPAN DATA!
-                    st.rerun()
-
-        st.session_state.progress[b] = st.session_state.halaman
-        doc.close()
-
-    except Exception as e:
-        st.error(f"Error: {e}")
-        if st.button("Kembali ke Rak"):
-            st.session_state.buku = None
-            st.rerun()
+                if st.button("Berikutnya
