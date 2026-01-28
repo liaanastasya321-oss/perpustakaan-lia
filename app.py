@@ -312,4 +312,17 @@ else:
 
         with n2:
             if st.session_state.halaman < total_hal - 1:
-                if st.button("Berikutnya
+                if st.button("Berikutnya ➡️", use_container_width=True):
+                    st.session_state.halaman += 1
+                    st.session_state.progress[b] = st.session_state.halaman
+                    save_data() # SIMPAN DATA!
+                    st.rerun()
+
+        st.session_state.progress[b] = st.session_state.halaman
+        doc.close()
+
+    except Exception as e:
+        st.error(f"Error: {e}")
+        if st.button("Kembali ke Rak"):
+            st.session_state.buku = None
+            st.rerun()
