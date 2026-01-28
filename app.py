@@ -19,13 +19,11 @@ FILE_DATABASE = "data_perpus.json"
 def load_data():
     """Mengambil data dari file"""
     if not os.path.exists(FILE_DATABASE):
-        # FIX ERROR: Defaultnya harus set() bukan []
         return {"sedang": set(), "selesai": set(), "progress": {}, "catatan": {}}
     
     try:
         with open(FILE_DATABASE, "r") as f:
             data = json.load(f)
-            # FIX ERROR: Paksa ubah list dari JSON menjadi set kembali
             return {
                 "sedang": set(data.get("sedang", [])),
                 "selesai": set(data.get("selesai", [])),
@@ -33,13 +31,12 @@ def load_data():
                 "catatan": data.get("catatan", {})
             }
     except:
-        # Kalau file rusak, reset ulang
         return {"sedang": set(), "selesai": set(), "progress": {}, "catatan": {}}
 
 def save_data():
     """Menyimpan data ke file"""
     data_simpan = {
-        "sedang": list(st.session_state.sedang), # Ubah set ke list biar bisa masuk JSON
+        "sedang": list(st.session_state.sedang), 
         "selesai": list(st.session_state.selesai),
         "progress": st.session_state.progress,
         "catatan": st.session_state.catatan
@@ -81,7 +78,6 @@ data_awal = load_data()
 
 if 'buku' not in st.session_state: st.session_state.buku = None
 if 'halaman' not in st.session_state: st.session_state.halaman = 0
-# Pastikan ini ngambil dari data_awal yang sudah dikonversi jadi set
 if 'sedang' not in st.session_state: st.session_state.sedang = data_awal["sedang"]
 if 'selesai' not in st.session_state: st.session_state.selesai = data_awal["selesai"]
 if 'progress' not in st.session_state: st.session_state.progress = data_awal["progress"]
@@ -143,7 +139,7 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR
+# 7. SIDEBAR (DENGAN TOMBOL HAPUS) ❌
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
@@ -172,7 +168,16 @@ with st.sidebar:
     st.subheader("📖 Sedang Dibaca")
     if st.session_state.sedang:
         for b in list(st.session_state.sedang):
-            st.caption(f"• {b.replace('.pdf', '')}")
+            # Kita bagi jadi 2 kolom: Nama Buku (Kiri) dan Tombol Hapus (Kanan)
+            c1, c2 = st.columns([4, 1])
+            with c1: 
+                st.caption(f"• {b.replace('.pdf', '')}")
+            with c2:
+                # Tombol X kecil buat hapus
+                if st.button("❌", key=f"del_{b}", help="Hapus dari daftar baca"):
+                    st.session_state.sedang.discard(b) # Buang dari set
+                    save_data() # Simpan perubahan
+                    st.rerun() # Refresh halaman
     else:
         st.caption("- Kosong -")
 
@@ -187,7 +192,7 @@ with st.sidebar:
                 if st.button("↺", key=f"undo_{b}"):
                     st.session_state.selesai.discard(b)
                     st.session_state.sedang.add(b)
-                    save_data() # SIMPAN DATA!
+                    save_data() 
                     st.rerun()
     else:
         st.caption("- Belum ada -")
@@ -207,7 +212,7 @@ with st.sidebar:
                 st.session_state.catatan[id_catatan] = catatan_baru
             elif id_catatan in st.session_state.catatan:
                 del st.session_state.catatan[id_catatan]
-            save_data() # SIMPAN DATA!
+            save_data() 
             st.toast("Catatan tersimpan!")
 
     st.divider()
@@ -258,7 +263,7 @@ if st.session_state.buku is None:
                 st.session_state.halaman = st.session_state.progress.get(b, 0)
                 st.session_state.sedang.add(b)
                 st.session_state.selesai.discard(b)
-                save_data() # SIMPAN DATA!
+                save_data() 
                 st.rerun()
 
 else:
@@ -283,7 +288,7 @@ else:
                 st.session_state.sedang.discard(b)
                 st.session_state.buku = None
                 st.toast("Buku selesai! 🎉")
-                save_data() # SIMPAN DATA!
+                save_data() 
                 st.rerun()
 
         st.divider()
@@ -305,7 +310,7 @@ else:
                 if st.button("⬅️ Sebelumnya", use_container_width=True):
                     st.session_state.halaman -= 1
                     st.session_state.progress[b] = st.session_state.halaman 
-                    save_data() # SIMPAN DATA!
+                    save_data() 
                     st.rerun()
             else:
                 st.markdown("") 
@@ -315,7 +320,7 @@ else:
                 if st.button("Berikutnya ➡️", use_container_width=True):
                     st.session_state.halaman += 1
                     st.session_state.progress[b] = st.session_state.halaman
-                    save_data() # SIMPAN DATA!
+                    save_data() 
                     st.rerun()
 
         st.session_state.progress[b] = st.session_state.halaman
@@ -326,4 +331,3 @@ else:
         if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
-
