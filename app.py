@@ -12,15 +12,13 @@ import json
 st.set_page_config(page_title="Liaaaa-Library Mini", page_icon="😻", layout="wide")
 
 # =====================
-# 2. SISTEM PENYIMPANAN DATA (DATABASE JSON) 💾
+# 2. SISTEM PENYIMPANAN DATA
 # =====================
 FILE_DATABASE = "data_perpus.json"
 
 def load_data():
-    """Mengambil data dari file"""
     if not os.path.exists(FILE_DATABASE):
         return {"sedang": set(), "selesai": set(), "progress": {}, "catatan": {}}
-    
     try:
         with open(FILE_DATABASE, "r") as f:
             data = json.load(f)
@@ -34,7 +32,6 @@ def load_data():
         return {"sedang": set(), "selesai": set(), "progress": {}, "catatan": {}}
 
 def save_data():
-    """Menyimpan data ke file"""
     data_simpan = {
         "sedang": list(st.session_state.sedang), 
         "selesai": list(st.session_state.selesai),
@@ -48,22 +45,27 @@ def save_data():
         st.error(f"Gagal menyimpan data: {e}")
 
 # =====================
-# 3. SISTEM LOGIN 🔐
+# 3. SISTEM LOGIN
 # =====================
 def check_password():
+    # Cek apakah secrets sudah disetting
+    if "password" not in st.secrets:
+        st.warning("⚠️ Password belum diatur di Secrets Streamlit Cloud.")
+        st.stop()
+
     def password_entered():
-        if st.session_state["password"] == st.secrets["password"]:
+        if st.session_state.get("password") == st.secrets["password"]:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]
+            if "password" in st.session_state: del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        st.text_input("🔒 Masukkan Password Akses:", type="password", on_change=password_entered, key="password")
+        st.text_input("🔒 Password:", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
-        st.text_input("🔒 Masukkan Password Akses:", type="password", on_change=password_entered, key="password")
-        st.error("🚫 Password salah, coba lagi ya!")
+        st.text_input("🔒 Password:", type="password", on_change=password_entered, key="password")
+        st.error("🚫 Salah password")
         return False
     else:
         return True
@@ -72,7 +74,7 @@ if not check_password():
     st.stop()
 
 # =====================
-# 4. INIT STATE (LOAD DARI FILE)
+# 4. INIT STATE
 # =====================
 data_awal = load_data()
 
@@ -139,11 +141,51 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR (DENGAN TOMBOL HAPUS) ❌
+# 7. SIDEBAR (DENGAN FITUR BACKUP) 💾
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
     
+    # --- FITUR BACKUP & RESTORE (PENYELAMAT DATA) ---
+    st.info("💡 **Tips:** Download backup sebelum tutup web biar data aman!")
+    
+    col_dl, col_ul = st.columns([1, 1])
+    
+    # 1. DOWNLOAD DATA
+    with col_dl:
+        # Siapkan data JSON string
+        data_json = json.dumps({
+            "sedang": list(st.session_state.sedang),
+            "selesai": list(st.session_state.selesai),
+            "progress": st.session_state.progress,
+            "catatan": st.session_state.catatan
+        })
+        st.download_button(
+            label="⬇️ Simpan",
+            data=data_json,
+            file_name="backup_perpus_lia.json",
+            mime="application/json",
+            help="Download data terakhir ke HP/Laptop"
+        )
+
+    # 2. UPLOAD DATA
+    uploaded_file = st.file_uploader("📂 Restore Data", type=["json"], label_visibility="collapsed")
+    if uploaded_file is not None:
+        try:
+            data_restored = json.load(uploaded_file)
+            # Masukkan ke sistem
+            st.session_state.sedang = set(data_restored.get("sedang", []))
+            st.session_state.selesai = set(data_restored.get("selesai", []))
+            st.session_state.progress = data_restored.get("progress", {})
+            st.session_state.catatan = data_restored.get("catatan", {})
+            save_data() # Simpan permanen
+            st.success("Data berhasil dikembalikan! 🎉")
+            st.rerun()
+        except:
+            st.error("File backup rusak!")
+
+    st.divider()
+
     st.subheader("📊 Statistik")
     jml_sedang = len(st.session_state.sedang)
     jml_selesai = len(st.session_state.selesai)
@@ -160,24 +202,19 @@ with st.sidebar:
         for spine in ax.spines.values():
             spine.set_edgecolor('white')
         st.pyplot(fig, use_container_width=True)
-    else:
-        st.caption("Grafik akan muncul jika ada aktivitas.")
 
     st.divider()
 
     st.subheader("📖 Sedang Dibaca")
     if st.session_state.sedang:
         for b in list(st.session_state.sedang):
-            # Kita bagi jadi 2 kolom: Nama Buku (Kiri) dan Tombol Hapus (Kanan)
             c1, c2 = st.columns([4, 1])
-            with c1: 
-                st.caption(f"• {b.replace('.pdf', '')}")
+            with c1: st.caption(f"• {b.replace('.pdf', '')}")
             with c2:
-                # Tombol X kecil buat hapus
-                if st.button("❌", key=f"del_{b}", help="Hapus dari daftar baca"):
-                    st.session_state.sedang.discard(b) # Buang dari set
-                    save_data() # Simpan perubahan
-                    st.rerun() # Refresh halaman
+                if st.button("❌", key=f"del_{b}"):
+                    st.session_state.sedang.discard(b)
+                    save_data()
+                    st.rerun()
     else:
         st.caption("- Kosong -")
 
@@ -207,13 +244,20 @@ with st.sidebar:
         
         catatan_baru = st.text_area("Tulis sesuatu...", value=isi_lama, height=150, placeholder="Contoh: Rumus penting...", key="input_catatan")
         
-        if st.button("💾 Simpan Catatan"):
-            if catatan_baru:
-                st.session_state.catatan[id_catatan] = catatan_baru
-            elif id_catatan in st.session_state.catatan:
-                del st.session_state.catatan[id_catatan]
-            save_data() 
-            st.toast("Catatan tersimpan!")
+        col_simpan, col_hapus = st.columns([1, 1])
+        with col_simpan:
+            if st.button("💾 Simpan", use_container_width=True):
+                if catatan_baru:
+                    st.session_state.catatan[id_catatan] = catatan_baru
+                    save_data()
+                    st.toast("Catatan tersimpan!")
+        with col_hapus:
+            if st.button("🗑️ Hapus", use_container_width=True):
+                if id_catatan in st.session_state.catatan:
+                    del st.session_state.catatan[id_catatan]
+                    if "input_catatan" in st.session_state: del st.session_state["input_catatan"]
+                    save_data()
+                    st.rerun()
 
     st.divider()
     st.header("🎧 Mood")
@@ -331,5 +375,3 @@ else:
         if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
-
-
