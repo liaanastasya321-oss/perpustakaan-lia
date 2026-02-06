@@ -233,7 +233,7 @@ with st.sidebar:
 books = list_buku()
 
 if st.session_state.buku is None:
-    st.markdown("<h1>📖 Perpustakaan Lia</h1>", unsafe_allow_html=True)
+    st.markdown("<h1>📖 Baca Aja GRATIS 100%</h1>", unsafe_allow_html=True)
     
     cari = st.text_input("🔍 Cari buku...", placeholder="Ketik judul buku...").lower()
     if cari: books = [b for b in books if cari in b.lower()]
@@ -331,4 +331,5 @@ else:
         if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
+
 
