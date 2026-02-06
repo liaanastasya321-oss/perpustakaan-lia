@@ -48,7 +48,6 @@ def save_data():
 # 3. SISTEM LOGIN
 # =====================
 def check_password():
-    # Cek apakah secrets sudah disetting
     if "password" not in st.secrets:
         st.warning("⚠️ Password belum diatur di Secrets Streamlit Cloud.")
         st.stop()
@@ -86,7 +85,7 @@ if 'progress' not in st.session_state: st.session_state.progress = data_awal["pr
 if 'catatan' not in st.session_state: st.session_state.catatan = data_awal["catatan"]
 
 # =====================
-# 5. ASSETS & CSS
+# 5. ASSETS & CSS (DENGAN FIX KOTAK PUTIH)
 # =====================
 firefly_html = ""
 for i in range(50):
@@ -117,6 +116,19 @@ button[kind="secondary"] { background: transparent !important; border: 1px solid
 .book-card:hover { transform: translateY(-5px); border-color: #00C9FF; }
 .cover-img { width: 100%; height: 280px; object-fit: cover; border-radius: 8px; margin-bottom: 12px; }
 .book-title { text-align: center; font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 15px; height: 42px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* --- FIX KOTAK UPLOAD BIAR GAK PUTIH --- */
+[data-testid="stFileUploader"] section {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px dashed #555 !important;
+    color: white !important;
+}
+[data-testid="stFileUploader"] section:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+[data-testid="stFileUploader"] .st-emotion-cache-1gulkj5 {
+    color: white !important;
+}
 </style>
 """, unsafe_allow_html=True)
 st.markdown(firefly_html, unsafe_allow_html=True)
@@ -141,48 +153,38 @@ def render_page(doc, page_num, zoom):
     except: return None
 
 # =====================
-# 7. SIDEBAR (DENGAN FITUR BACKUP) 💾
+# 7. SIDEBAR (BACKUP)
 # =====================
 with st.sidebar:
     st.header("👤 Rak Lia")
     
-    # --- FITUR BACKUP & RESTORE (PENYELAMAT DATA) ---
+    # --- FITUR BACKUP ---
     st.info("💡 **Tips:** Download backup sebelum tutup web biar data aman!")
     
     col_dl, col_ul = st.columns([1, 1])
-    
-    # 1. DOWNLOAD DATA
     with col_dl:
-        # Siapkan data JSON string
         data_json = json.dumps({
             "sedang": list(st.session_state.sedang),
             "selesai": list(st.session_state.selesai),
             "progress": st.session_state.progress,
             "catatan": st.session_state.catatan
         })
-        st.download_button(
-            label="⬇️ Simpan",
-            data=data_json,
-            file_name="backup_perpus_lia.json",
-            mime="application/json",
-            help="Download data terakhir ke HP/Laptop"
-        )
+        st.download_button(label="⬇️ Simpan", data=data_json, file_name="backup_perpus_lia.json", mime="application/json")
 
-    # 2. UPLOAD DATA
+    # UPLOAD (RESTORE)
     uploaded_file = st.file_uploader("📂 Restore Data", type=["json"], label_visibility="collapsed")
     if uploaded_file is not None:
         try:
             data_restored = json.load(uploaded_file)
-            # Masukkan ke sistem
             st.session_state.sedang = set(data_restored.get("sedang", []))
             st.session_state.selesai = set(data_restored.get("selesai", []))
             st.session_state.progress = data_restored.get("progress", {})
             st.session_state.catatan = data_restored.get("catatan", {})
-            save_data() # Simpan permanen
-            st.success("Data berhasil dikembalikan! 🎉")
+            save_data()
+            st.success("Data kembali! 🎉")
             st.rerun()
         except:
-            st.error("File backup rusak!")
+            st.error("File rusak!")
 
     st.divider()
 
