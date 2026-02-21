@@ -45,32 +45,6 @@ def save_data():
         st.error(f"Gagal menyimpan data: {e}")
 
 # =====================
-# 3. SISTEM LOGIN
-# =====================
-def check_password():
-    if "password" not in st.secrets:
-        st.warning("⚠️ Password belum diatur di Secrets Streamlit Cloud.")
-        st.stop()
-
-    def password_entered():
-        if st.session_state.get("password") == st.secrets["password"]:
-            st.session_state["password_correct"] = True
-            if "password" in st.session_state: del st.session_state["password"]
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        st.text_input("🔒 Password:", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.text_input("🔒 Password:", type="password", on_change=password_entered, key="password")
-        st.error("🚫 Salah password")
-        return False
-    else:
-        return True
-
-if not check_password():
-    st.stop()
 
 # =====================
 # 4. INIT STATE
@@ -377,3 +351,4 @@ else:
         if st.button("Kembali ke Rak"):
             st.session_state.buku = None
             st.rerun()
+
